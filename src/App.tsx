@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
 import { useGame, isDebug } from './store/game'
 import { useView } from './three/view'
 import { audio } from './audio/engine'
@@ -113,12 +113,11 @@ function ScreenRouter() {
       node = <LetterScreen />
       break
   }
+  // Sin animación de salida: el cambio de pantalla es inmediato y nunca se queda a medias
   return (
-    <AnimatePresence mode="wait">
-      <motion.div key={screen} className="ui-layer" data-screen={screen} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-        <Suspense fallback={null}>{node}</Suspense>
-      </motion.div>
-    </AnimatePresence>
+    <div key={screen} className="ui-layer screen-in" data-screen={screen}>
+      <Suspense fallback={null}>{node}</Suspense>
+    </div>
   )
 }
 

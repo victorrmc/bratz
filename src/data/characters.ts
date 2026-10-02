@@ -26,11 +26,11 @@ export const DOLLS: DollDef[] = [
     personality: 'Elegante, decidida y con una sonrisa que ilumina cualquier sitio. Siempre sabe qué ponerse… y a dónde quiere ir.',
     quote: '«Lo mejor de la vida se vive con el pelo recogido y el mar enfrente.»',
     color: '#ff2d8a',
-    skin: '#f2c9b4',
+    skin: '#efc0a6',
     skinShade: '#d39a84',
     eyes: '#2a1610',
     brows: '#4a1f16',
-    face: { lipFullness: 1.15, eyeSize: 1.0, browArch: 1.15 },
+    face: { lipFullness: 1.3, eyeSize: 1.0, browArch: 1.15 },
     defaultLook: {
       outfit: {
         dress: { itemId: 'dress-slip', color: '#ffb3d9', pattern: 'liso' },
@@ -41,8 +41,8 @@ export const DOLLS: DollDef[] = [
       },
       hair: {
         styleId: 'mono-bajo',
-        base: '#6e2a1f',
-        highlights: '#8e3a24',
+        base: '#5a2018',
+        highlights: '#7e3322',
         highlightsOn: true,
         tips: '#ff6fb5',
         tipsOn: false,

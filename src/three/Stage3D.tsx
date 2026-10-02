@@ -86,7 +86,7 @@ function Doll({ quality, holder, rigRef, controlledPose }: { quality: Q; holder:
 const PRESETS: Record<string, { target: [number, number, number]; height: number; frameH: number; frameW: number; side?: number }> = {
   cuerpo: { target: [0, 0.93, 0], height: 1.05, frameH: 1.95, frameW: 1.0 },
   cara: { target: [0, 1.5, 0.02], height: 1.53, frameH: 0.44, frameW: 0.42 },
-  manos: { target: [0.2, 0.8, 0.04], height: 0.86, frameH: 0.32, frameW: 0.32, side: 0.6 },
+  manos: { target: [0.2, 0.74, 0.03], height: 0.8, frameH: 0.36, frameW: 0.34, side: 0.75 },
   pies: { target: [0, 0.12, 0.05], height: 0.4, frameH: 0.42, frameW: 0.55 },
   hero: { target: [0, 0.98, 0], height: 1.15, frameH: 2.0, frameW: 1.3 },
   photo: { target: [0, 0.95, 0], height: 1.1, frameH: 2.05, frameW: 1.1 },

@@ -218,9 +218,14 @@ function capAt(f: Frame, r: number, radial: number, ex: number, ez: number, star
 }
 
 export function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  // conserva solo los atributos presentes en todas las piezas (hairT incluido)
+  const keep = ['position', 'normal', 'uv', 'hairT'].filter((k) => parts.every((g) => g.getAttribute(k)))
   const cleaned = parts.map((g) => {
-    const c = g.index ? g : mergeVertices(g)
-    for (const k of Object.keys(c.attributes)) if (!['position', 'normal', 'uv'].includes(k)) c.deleteAttribute(k)
+    let c = g.index ? g : mergeVertices(g)
+    if (Object.keys(c.attributes).some((k) => !keep.includes(k))) {
+      c = c.clone()
+      for (const k of Object.keys(c.attributes)) if (!keep.includes(k)) c.deleteAttribute(k)
+    }
     return c
   })
   const m = mergeGeometries(cleaned, false)

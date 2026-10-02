@@ -326,8 +326,8 @@ export interface FaceShape {
  * Devuelve la posición relativa al centro de la cabeza.
  */
 export function headPoint(dx: number, dy: number, dz: number, shape: FaceShape, out = new THREE.Vector3()): THREE.Vector3 {
-  const jaw = Math.pow(smoothstep(0.05, -0.98, dy), 1.45)
-  let sx = 1 - 0.3 * jaw
+  const jaw = Math.pow(smoothstep(0.08, -0.98, dy), 1.35)
+  let sx = 1 - 0.32 * jaw
   sx *= 1 + 0.045 * gauss(dy + 0.25, 0.32)
   let sz = dz >= 0 ? 1 - 0.1 * jaw : 1 - 0.42 * jaw
   // cráneo algo mayor por detrás y arriba

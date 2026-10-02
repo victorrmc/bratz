@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useView } from '../../three/view'
 import { useGame } from '../../store/game'
 import { STORY } from '../../data/story'
 import { ITEM_BY_ID } from '../../data/items'
 import { DOLL_BY_ID } from '../../data/characters'
 import { isItemUnlocked, shopItems, unlockHint } from '../../game/economy'
-import { Btn, IconBtn, Modal, TopBar } from '../kit'
+import { Btn, IconBtn, Modal, TopBar, useInsetReporter, useInsetTop } from '../kit'
 import { Coin, Icon } from '../Icon'
 import { ItemGlyph } from '../ItemGlyph'
 import { audio } from '../../audio/engine'
@@ -114,10 +115,15 @@ export function ShopScreen() {
   const setPreview = useGame((s) => s.setPreview)
   const preview = useGame((s) => s.previewItem)
   const items = shopItems()
+  const sheet = useRef<HTMLDivElement>(null)
+  const setView = useView((s) => s.set)
+  const reporter = useCallback((b: number, r: number) => setView({ insetBottom: b, insetRight: r }), [setView])
+  useInsetTop(70)
+  useInsetReporter(sheet, reporter)
   return (
     <>
       <TopBar title="Tienda" />
-      <div className="sheet glass" style={{ maxHeight: '52vh' }}>
+      <div ref={sheet} className="sheet glass" style={{ maxHeight: '50vh' }}>
         <div className="section-title" style={{ padding: '8px 12px 0', margin: 0 }}>
           <span>Toca para probar · Las secretas se ganan jugando</span>
         </div>
@@ -158,8 +164,8 @@ export function EndingScreen() {
   return (
     <>
       <TopBar title="" />
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 1.2 }} style={{ position: 'fixed', top: 'calc(var(--safe-t) + 80px)', left: 0, right: 0, textAlign: 'center', pointerEvents: 'none' }}>
-        <h1 className="display holo-text" style={{ fontSize: 'clamp(30px, 9vw, 56px)', margin: 0, filter: 'drop-shadow(0 2px 0 #fff)' }}>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 1.2 }} style={{ position: 'fixed', top: 'calc(var(--safe-t) + 64px)', left: 12, right: 12, textAlign: 'center', pointerEvents: 'none' }}>
+        <h1 className="display holo-text" style={{ fontSize: 'clamp(24px, 7vw, 48px)', margin: 0, filter: 'drop-shadow(0 2px 0 #fff)' }}>
           {STORY.endingTitle}
         </h1>
       </motion.div>

@@ -185,6 +185,7 @@ export function useInsetReporter(ref: React.RefObject<HTMLElement | null>, sette
     if (!el) return
     const update = () => {
       const r = el.getBoundingClientRect()
+      if (r.width === 0 || r.height === 0) return setter(0, 0)
       const landscape = window.innerWidth > window.innerHeight && window.innerWidth >= 700
       if (landscape) setter(0, window.innerWidth - r.left)
       else setter(window.innerHeight - r.top, 0)

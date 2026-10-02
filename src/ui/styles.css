@@ -611,3 +611,12 @@ html.hq .glass {
     box-shadow: 0 6px 24px rgba(255, 45, 138, 0.6), 0 0 0 12px rgba(255, 255, 255, 0);
   }
 }
+
+.screen-in {
+  animation: screenIn 0.2s ease-out;
+}
+@keyframes screenIn {
+  from {
+    opacity: 0.4;
+  }
+}

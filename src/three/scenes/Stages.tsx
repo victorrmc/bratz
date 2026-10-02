@@ -84,7 +84,7 @@ function Disco({ quality }: { quality: string }) {
 
 function Mall({ quality }: { quality: string }) {
   const tiles = useMemo(() => {
-    const t = patternTexture('escoces', '#f7f2f6', '#e6d9f0').clone()
+    const t = patternTexture('escoces', '#efe3f2', '#d6c2ea').clone()
     t.repeat.set(8, 8)
     t.needsUpdate = true
     return t
@@ -96,10 +96,10 @@ function Mall({ quality }: { quality: string }) {
   ]
   return (
     <>
-      <GlamEnvironment tint="#ffffff" accent="#ffd6ec" intensity={1} />
-      <ThreePointLights key1="#ffffff" fill="#ffe0f0" rim="#d9ccff" k={1.05} />
-      <color attach="background" args={['#f5eef6']} />
-      <fog attach="fog" args={['#f5eef6', 6, 14]} />
+      <GlamEnvironment tint="#ffd6ec" accent="#c9b6ff" intensity={0.55} />
+      <ThreePointLights key1="#ffffff" fill="#ffc6e4" rim="#b9a4ff" k={0.8} />
+      <color attach="background" args={['#e9d6f2']} />
+      <fog attach="fog" args={['#e9d6f2', 7, 15]} />
       <mesh rotation-x={-Math.PI / 2} receiveShadow>
         <planeGeometry args={[14, 14]} />
         <meshPhysicalMaterial map={tiles} roughness={0.2} clearcoat={1} />
@@ -203,7 +203,7 @@ function RedCarpet({ quality }: { quality: string }) {
     const cv = document.createElement('canvas')
     cv.width = cv.height = 256
     const x = cv.getContext('2d')!
-    x.fillStyle = '#ffffff'
+    x.fillStyle = '#2a0f22'
     x.fillRect(0, 0, 256, 256)
     for (let i = 0; i < 4; i++)
       for (let j = 0; j < 4; j++) {
@@ -295,16 +295,16 @@ function Room({ quality }: { quality: string }) {
   const posters = ['#ff5fae', '#8f5bff', '#3de0c4']
   return (
     <>
-      <GlamEnvironment tint="#ffc2e2" accent="#c9b6ff" intensity={0.9} />
-      <ThreePointLights key1="#fff2f8" fill="#ffb3d9" rim="#c9a7ff" />
-      <color attach="background" args={['#ffd6ec']} />
+      <GlamEnvironment tint="#ffc2e2" accent="#c9b6ff" intensity={0.55} />
+      <ThreePointLights key1="#fff2f8" fill="#ffb3d9" rim="#c9a7ff" k={0.8} />
+      <color attach="background" args={['#f7b3d6']} />
       <mesh position={[0, 1.8, -2.6]}>
         <planeGeometry args={[9, 3.6]} />
-        <meshStandardMaterial map={patternTexture('corazones', '#ffc6e4', '#ffb0d8')} roughness={0.9} />
+        <meshStandardMaterial map={patternTexture('corazones', '#ff9fd0', '#ff5fae')} roughness={0.9} />
       </mesh>
       <mesh rotation-x={-Math.PI / 2}>
         <planeGeometry args={[10, 10]} />
-        <meshStandardMaterial color="#e9c9f4" roughness={0.8} />
+        <meshStandardMaterial color="#c9a7ff" roughness={0.8} />
       </mesh>
       {/* alfombra peluda */}
       <mesh rotation-x={-Math.PI / 2} position-y={0.006}>
@@ -437,10 +437,10 @@ function HomeProps() {
   }, [])
   return (
     <group>
-      <mesh geometry={arch} position={[-2.4, 1.3, -1.4]} rotation-y={0.5}>
+      <mesh geometry={arch} position={[-1.35, 1.3, -1.25]} rotation-y={0.35}>
         <meshStandardMaterial color="#fbf6ef" roughness={0.9} side={THREE.DoubleSide} />
       </mesh>
-      <group ref={swing} position={[2.1, 2.3, -1.2]}>
+      <group ref={swing} position={[1.2, 2.3, -1.0]}>
         {[-0.22, 0.22].map((x) => (
           <mesh key={x} position={[x, -0.75, 0]}>
             <cylinderGeometry args={[0.008, 0.008, 1.5, 6]} />
@@ -452,7 +452,7 @@ function HomeProps() {
           <meshStandardMaterial color="#c08a5a" roughness={0.7} />
         </mesh>
       </group>
-      <group position={[1.4, 0, -0.6]}>
+      <group position={[0.85, 0, -0.35]}>
         <mesh position-y={0.36}>
           <cylinderGeometry args={[0.28, 0.28, 0.03, 32]} />
           <meshStandardMaterial color="#ffffff" />
@@ -468,7 +468,7 @@ function HomeProps() {
           </mesh>
         ))}
       </group>
-      <group position={[-1.5, 0, -1.9]}>
+      <group position={[-0.95, 0, -1.6]}>
         <mesh position-y={0.2}>
           <cylinderGeometry args={[0.2, 0.15, 0.4, 20]} />
           <meshStandardMaterial color="#d6825e" roughness={0.8} />

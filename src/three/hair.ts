@@ -124,6 +124,29 @@ function cap(params: Record<string, number>, sleek: boolean): THREE.BufferGeomet
   )
 }
 
+/** Mechones peinados sobre el casquete: dan textura y evitan el aspecto de casco. */
+function locks(params: Record<string, number>, sleek: boolean): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = []
+  const off = sleek ? 0.0075 : 0.014 + (params.volume ?? 0) * 0.01
+  const n = 26
+  for (let i = 0; i < n; i++) {
+    const b = ((i + 0.5 + 0.3 * Math.sin(i * 7.3)) / n - 0.5) * 2 * (B_MAX - 0.12)
+    const ab = Math.abs(b)
+    const a0 = hairlineFront(ab) + 0.04
+    const a1 = (params.high ? 2.3 : hairlineBack(ab)) - 0.15
+    const pts: [number, number, number][] = []
+    for (let k = 0; k <= 10; k++) {
+      const a = a0 + (a1 - a0) * (k / 10)
+      // los mechones se separan un poco de la raya y vuelven a juntarse atrás
+      const bb = b * (1 + 0.06 * Math.sin((k / 10) * Math.PI))
+      const p = scalp(a, bb, off + 0.0012 * Math.sin((k / 10) * Math.PI))
+      pts.push([p.x, p.y, p.z])
+    }
+    parts.push(tSweep(curveOf(pts), (t) => (0.0032 + 0.0012 * Math.sin(i * 3.1)) * Math.sin(Math.min(1, t * 6) * Math.PI * 0.5) * (1 - 0.6 * t), { radial: 6, segments: 30, ellipse: [0.3, 1] }))
+  }
+  return merge(parts.map((g) => withT(g, () => 0)))
+}
+
 /** Moño retorcido (espiral) orientado según `dir`. */
 function bun(anchor: THREE.Vector3, dir: THREE.Vector3, size = 1): THREE.BufferGeometry {
   const pts: [number, number, number][] = []
@@ -436,10 +459,10 @@ function pieceGeometry(kind: HairPieceKind, p: Record<string, number>): { g: THR
   const key = `${kind}|${JSON.stringify(p)}`
   switch (kind) {
     case 'capSleek':
-      return [{ g: cached(key, () => cap(p, true)) }]
+      return [{ g: cached(key, () => merge([cap(p, true), locks(p, true)].map((g) => (g.getAttribute('hairT') ? g : withT(g, () => 0))))) }]
     case 'capVolume':
     case 'capSide':
-      return [{ g: cached(key, () => cap(p, false)) }]
+      return [{ g: cached(key, () => merge([cap(p, false), locks(p, false)].map((g) => (g.getAttribute('hairT') ? g : withT(g, () => 0))))) }]
     case 'bunLow':
     case 'bunHigh': {
       const an = kind === 'bunLow' ? ANCHORS.low : ANCHORS.high
