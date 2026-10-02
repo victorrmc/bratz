@@ -162,8 +162,8 @@ export const forearmR = table([
   [0.218, 0.0185],
 ])
 export const thighR = table([
-  [-0.06, 0.05],
-  [-0.025, 0.066],
+  [-0.06, 0.04],
+  [-0.03, 0.058],
   [0.0, 0.074],
   [0.06, 0.071],
   [0.18, 0.06],
@@ -326,9 +326,11 @@ export interface FaceShape {
  * Devuelve la posición relativa al centro de la cabeza.
  */
 export function headPoint(dx: number, dy: number, dz: number, shape: FaceShape, out = new THREE.Vector3()): THREE.Vector3 {
-  const jaw = Math.pow(smoothstep(0.08, -0.98, dy), 1.35)
-  let sx = 1 - 0.32 * jaw
-  sx *= 1 + 0.045 * gauss(dy + 0.25, 0.32)
+  // afinado progresivo de la mandíbula (sin esquinas)
+  const jt = Math.max(0, Math.min(1, (0.15 - dy) / 1.13))
+  const jaw = jt * jt * (1.6 - 0.6 * jt)
+  let sx = 1 - 0.42 * jaw
+  sx *= 1 + 0.03 * gauss(dy + 0.1, 0.25)
   let sz = dz >= 0 ? 1 - 0.1 * jaw : 1 - 0.42 * jaw
   // cráneo algo mayor por detrás y arriba
   if (dz < 0) sz *= 1 + 0.07 * smoothstep(-0.2, 0.6, dy)

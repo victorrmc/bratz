@@ -57,8 +57,8 @@ function Flashes() {
   return (
     <group ref={ref}>
       {Array.from({ length: 14 }, (_, i) => (
-        <mesh key={i} position={[(i % 2 ? 1 : -1) * (1.6 + (i % 3) * 0.5), 1.1 + (i % 3) * 0.2, START_Z + i * 0.45]}>
-          <sphereGeometry args={[0.05, 8, 6]} />
+        <mesh key={i} position={[(i % 2 ? 1 : -1) * (2.4 + (i % 3) * 0.5), 1.1 + (i % 3) * 0.2, START_Z - 1 + i * 0.35]}>
+          <sphereGeometry args={[0.035, 8, 6]} />
           <meshBasicMaterial toneMapped={false} />
         </mesh>
       ))}
@@ -102,6 +102,7 @@ function Petals() {
 
 export default function RunwayScene({ quality, holder, rig, special = false, onFinish, onPose }: RunwayProps) {
   const camera = useThree((s) => s.camera)
+  const size = useThree((s) => s.size)
   const state = useRef({ t: 0, phase: 'walk' as 'walk' | 'pose' | 'back', posed: false, finished: false })
   const strip = useMemo(() => {
     const pts: [number, number, number][] = []
@@ -180,6 +181,9 @@ export default function RunwayScene({ quality, holder, rig, special = false, onF
       camPos.set(-2.4, 1.5, z + 3.4)
       look.set(0, 1.0, z)
     }
+    // en vertical hace falta más distancia para que quepa la figura entera
+    const fit = Math.max(1, 0.75 / (size.width / size.height))
+    camPos.sub(look).multiplyScalar(fit).add(look)
     camera.position.lerp(camPos, Math.min(1, dt * 2.5))
     camera.lookAt(look)
   })

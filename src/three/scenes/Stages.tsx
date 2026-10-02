@@ -98,7 +98,7 @@ function Mall({ quality }: { quality: string }) {
     <>
       <GlamEnvironment tint="#ffd6ec" accent="#c9b6ff" intensity={0.55} />
       <ThreePointLights key1="#ffffff" fill="#ffc6e4" rim="#b9a4ff" k={0.8} />
-      <color attach="background" args={['#e9d6f2']} />
+      <color attach="background" args={['#cdb3ea']} />
       <fog attach="fog" args={['#e9d6f2', 7, 15]} />
       <mesh rotation-x={-Math.PI / 2} receiveShadow>
         <planeGeometry args={[14, 14]} />
@@ -112,7 +112,7 @@ function Mall({ quality }: { quality: string }) {
           </mesh>
           <mesh position={[0, 1.25, 0.06]}>
             <planeGeometry args={[1.7, 2.1]} />
-            <meshStandardMaterial color={w.c} emissive={w.c} emissiveIntensity={0.55} />
+            <meshStandardMaterial color={w.c} emissive={w.c} emissiveIntensity={0.8} />
           </mesh>
           {/* maniquí abstracto */}
           <mesh position={[0, 0.95, 0.15]}>
@@ -384,7 +384,7 @@ function IbizaSunset({ quality, home = false }: { quality: string; home?: boolea
     <>
       <GlamEnvironment tint="#ffb38a" accent="#ff7ab8" intensity={0.95} />
       <ThreePointLights key1="#ffd9b8" fill="#ffa8c8" rim="#ff9a5a" k={1.05} />
-      <GradientSky top="#6f63c9" mid="#ff8f9f" bottom="#ffbf7a" />
+      {home ? <GradientSky top="#2e3a8c" mid="#e77fa6" bottom="#ffb27a" /> : <GradientSky top="#6f63c9" mid="#ff8f9f" bottom="#ffbf7a" />}
       <mesh position={[2.2, 0.7, -26]}>
         <circleGeometry args={[1.6, 48]} />
         <meshBasicMaterial color={new THREE.Color('#ffcf7a').multiplyScalar(2.2)} toneMapped={false} />
@@ -435,12 +435,59 @@ function HomeProps() {
     outer.holes.push(hole)
     return new THREE.ShapeGeometry(outer, 24)
   }, [])
+  const wall = useMemo(() => {
+    const sh = new THREE.Shape()
+    sh.moveTo(-1.6, 0)
+    sh.lineTo(1.6, 0)
+    sh.lineTo(1.6, 2.4)
+    sh.quadraticCurveTo(0, 2.75, -1.6, 2.4)
+    sh.lineTo(-1.6, 0)
+    const door = new THREE.Path()
+    door.moveTo(-0.45, 0)
+    door.lineTo(0.45, 0)
+    door.lineTo(0.45, 1.45)
+    door.absarc(0, 1.45, 0.45, 0, Math.PI, false)
+    door.lineTo(-0.45, 0)
+    sh.holes.push(door)
+    return new THREE.ExtrudeGeometry(sh, { depth: 0.18, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 2, curveSegments: 20 })
+  }, [])
+  const doorGeo = useMemo(() => {
+    const sh = new THREE.Shape()
+    sh.moveTo(-0.45, 0)
+    sh.lineTo(0.45, 0)
+    sh.lineTo(0.45, 1.45)
+    sh.absarc(0, 1.45, 0.45, 0, Math.PI, false)
+    sh.lineTo(-0.45, 0)
+    return new THREE.ShapeGeometry(sh, 20)
+  }, [])
+  const lightsArc = useMemo(() => {
+    const pts: [number, number, number][] = []
+    for (let i = 0; i <= 18; i++) {
+      const a = Math.PI * (i / 18)
+      pts.push([Math.cos(a) * 0.62, 1.45 + Math.sin(a) * 0.62, -1.05])
+    }
+    return pts
+  }, [])
   return (
     <group>
-      <mesh geometry={arch} position={[-1.35, 1.3, -1.25]} rotation-y={0.35}>
+      {/* nuestra puerta: pared encalada con arco y puerta azul ibicenca */}
+      <mesh geometry={wall} position={[0, 0, -1.3]}>
+        <meshStandardMaterial color="#fbf6ef" roughness={0.9} />
+      </mesh>
+      <mesh geometry={doorGeo} position={[0, 0, -1.25]}>
+        <meshStandardMaterial color="#2c6fb3" roughness={0.5} />
+      </mesh>
+      <mesh position={[0.28, 0.95, -1.22]}>
+        <sphereGeometry args={[0.03, 12, 8]} />
+        <meshStandardMaterial color="#e3b45a" metalness={1} roughness={0.2} />
+      </mesh>
+      <Bulbs points={lightsArc} color="#ffe2a8" size={0.026} intensity={2.6} />
+      <Bougainvillea position={[-1.05, 2.15, -1.05]} count={70} spread={[1.0, 0.5, 0.3]} />
+      <Bougainvillea position={[1.15, 1.9, -1.05]} count={50} spread={[0.7, 0.6, 0.3]} />
+      <mesh geometry={arch} position={[-1.35, 1.3, -1.25]} rotation-y={0.35} visible={false}>
         <meshStandardMaterial color="#fbf6ef" roughness={0.9} side={THREE.DoubleSide} />
       </mesh>
-      <group ref={swing} position={[1.2, 2.3, -1.0]}>
+      <group ref={swing} position={[1.35, 2.3, -0.7]}>
         {[-0.22, 0.22].map((x) => (
           <mesh key={x} position={[x, -0.75, 0]}>
             <cylinderGeometry args={[0.008, 0.008, 1.5, 6]} />
@@ -468,7 +515,7 @@ function HomeProps() {
           </mesh>
         ))}
       </group>
-      <group position={[-0.95, 0, -1.6]}>
+      <group position={[-1.0, 0, -0.9]}>
         <mesh position-y={0.2}>
           <cylinderGeometry args={[0.2, 0.15, 0.4, 20]} />
           <meshStandardMaterial color="#d6825e" roughness={0.8} />
@@ -478,7 +525,7 @@ function HomeProps() {
           <meshStandardMaterial color="#7f9a63" flatShading roughness={0.9} />
         </mesh>
       </group>
-      <FloatingShape kind="heart" position={[0.9, 2.2, -1.6]} scale={0.22} color="#ff5fae" emissive={0.2} />
+      <FloatingShape kind="heart" position={[0, 2.35, -1.0]} scale={0.22} color="#ff5fae" emissive={0.3} />
     </group>
   )
 }
