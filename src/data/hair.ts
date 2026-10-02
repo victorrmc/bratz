@@ -100,6 +100,37 @@ export const HAIR_STYLES: HairStyleDef[] = [
     pieces: [{ kind: 'capVolume', params: { part: 1 } }, { kind: 'curtainStraight', params: { length: 0.24 } }, { kind: 'faceStrands', params: { length: 0.22 } }],
     tags: ['street', 'elegante'],
   },
+  {
+    id: 'boda-ibicenca',
+    name: 'Recogido de boda ibicenca',
+    pieces: [
+      { kind: 'capVolume', params: { part: 1 } },
+      { kind: 'braidCrown' },
+      { kind: 'bunMessy', params: { high: 0, size: 1.25 } },
+      { kind: 'flowers' },
+      { kind: 'faceStrands', params: { short: 1 } },
+    ],
+    tags: ['ibiza', 'romantico', 'boho', 'elegante'],
+  },
+  {
+    id: 'trenza-espiga',
+    name: 'Trenza lateral de espiga',
+    pieces: [{ kind: 'capVolume', params: { part: 1 } }, { kind: 'braidSide', params: { side: 1, length: 0.44 } }],
+    tags: ['boho', 'playa', 'romantico'],
+  },
+  {
+    id: 'mono-despeinado',
+    name: 'Moño despeinado',
+    pieces: [{ kind: 'capVolume', params: { part: 0, high: 1 } }, { kind: 'bunMessy', params: { high: 1, size: 1.1 } }, { kind: 'faceStrands', params: { short: 1 } }],
+    tallTop: true,
+    tags: ['street', 'playa', 'boho'],
+  },
+  {
+    id: 'coleta-burbujas',
+    name: 'Coleta de burbujas',
+    pieces: [{ kind: 'capSleek', params: { high: 1 } }, { kind: 'ponyBubble', params: { length: 0.5, bubbles: 4 } }],
+    tags: ['y2k', 'fiesta', 'deportivo'],
+  },
 ]
 
 export const HAIR_BY_ID: Record<string, HairStyleDef> = Object.fromEntries(HAIR_STYLES.map((h) => [h.id, h]))
