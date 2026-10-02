@@ -148,7 +148,7 @@ Las capturas están en `docs/screenshots/<ronda>/`, con un viewport de 390×844 
 | 14 reto | 7 | 8 | 8 | 8 | 8 | 7 | 7 | Correcta |
 | 15 jurado | 8 | 8 | 8 | 8 | 8 | 8 | 8 | Correcta |
 | 16 disco | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
-| 16 centro comercial | 7 | 8 | 6 | 6 | 8 | 6 | 6 | El escaparate lila llena el fondo |
+| 16 centro comercial (rediseñado) | 7 | 8 | 7 | 7 | 8 | 7 | 7 | Pared de rayas, corazón de neón y escaparates en ángulo: ya es coherente, aunque algo pastel |
 | 16 playa | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
 | 16 alfombra roja | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
 | 16 habitación Y2K | 7 | 8 | 7 | 8 | 8 | 7 | 7 | Correcta |
@@ -166,6 +166,6 @@ Las capturas están en `docs/screenshots/<ronda>/`, con un viewport de 390×844 
 
 - La interfaz, la iluminación, la ropa (sin clipping) y los escenarios llegan a 7–8.
 - El criterio que más baja la nota es la **calidad de los personajes (7)**. Las muñecas son 100 % procedurales, construidas con geometría generada por código y una cara pintada en textura. Tienen un estilo de muñeca coherente y bonito, pero no alcanzan el acabado de un personaje modelado y esculpido a mano por un artista.
-- El **centro comercial (6)** es el escenario más flojo.
+- El **centro comercial**, que era el escenario más flojo (6), sube a 7 tras rediseñarlo. Ya no queda ninguna captura por debajo de 7.
 
 Subir de 7 a 8 de forma generalizada necesitaría modelos GLB/VRM hechos por un artista. El sistema está preparado para incorporarlos en `/assets`.
