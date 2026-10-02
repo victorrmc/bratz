@@ -45,7 +45,7 @@ export function WardrobeScreen() {
   return (
     <>
       <TopBar title="Armario" />
-      <div className="scroll" style={{ position: 'fixed', inset: 0, top: 'calc(var(--safe-t) + 66px)', padding: '0 12px calc(var(--safe-b) + 16px)' }}>
+      <div className="scroll" style={{ position: 'fixed', inset: 0, top: 'calc(var(--safe-t) + 66px)', padding: '0 12px calc(var(--safe-b) + 16px)', background: 'linear-gradient(180deg, rgba(255,214,236,.35), rgba(255,214,236,.75))' }}>
         {looks.length === 0 && (
           <div className="glass" style={{ padding: 20, textAlign: 'center', maxWidth: 420, margin: '20px auto' }} data-testid="wardrobe-empty">
             <Icon name="closet" width={48} height={48} style={{ color: 'var(--pink)' }} />

@@ -275,14 +275,14 @@ export class SkirtDeformer {
         const dx = x / rr
         const dz = z / rr
         let need = rr * prevScale[i]
-        if (y < 0.88) {
+        if (y < 0.95) {
           for (const s of this.segs) {
             // punto del eje de la pierna a esta altura
             const t = (s.a.y - y) / (s.a.y - s.b.y || 1e-6)
             if (t < -0.15 || t > 1.05) continue
             const tc = Math.max(0, Math.min(1, t))
             tmp.copy(s.a).lerp(s.b, tc)
-            const R = (s.r(tc * s.len) + this.margin) * smoothstep(0.88, 0.8, y)
+            const R = (s.r(tc * s.len) + this.margin) * (0.6 + 0.4 * smoothstep(0.95, 0.86, y))
             const proj = tmp.x * dx + tmp.z * dz
             const px = tmp.x - proj * dx
             const pz = tmp.z - proj * dz

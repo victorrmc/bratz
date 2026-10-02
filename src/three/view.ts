@@ -12,6 +12,7 @@ export const interaction = {
   fps: 60,
   scene: null as unknown,
   gl: null as unknown,
+  camera: null as unknown,
 }
 
 interface ViewState {

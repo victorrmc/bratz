@@ -84,22 +84,23 @@ function Disco({ quality }: { quality: string }) {
 
 function Mall({ quality }: { quality: string }) {
   const tiles = useMemo(() => {
-    const t = patternTexture('escoces', '#efe3f2', '#d6c2ea').clone()
+    const t = patternTexture('escoces', '#ffd6ec', '#f29ccc').clone()
     t.repeat.set(8, 8)
     t.needsUpdate = true
     return t
   }, [])
   const windows = [
-    { x: -2.2, c: '#ffb3d9' },
-    { x: 0, c: '#c9a7ff' },
-    { x: 2.2, c: '#7fd6ff' },
+    { x: -2.2, c: '#ff5fae' },
+    { x: 0, c: '#8f5bff' },
+    { x: 2.2, c: '#2fb8ff' },
   ]
   return (
     <>
       <GlamEnvironment tint="#ffd6ec" accent="#c9b6ff" intensity={0.55} />
       <ThreePointLights key1="#ffffff" fill="#ffc6e4" rim="#b9a4ff" k={0.8} />
-      <color attach="background" args={['#cdb3ea']} />
-      <fog attach="fog" args={['#e9d6f2', 7, 15]} />
+      <color attach="background" args={['#b98be6']} />
+      <fog attach="fog" args={['#c9a0ea', 7, 15]} />
+      <NeonTube points={heartShape(0.35).getSpacedPoints(50).map((p) => [p.x, 3.05 + p.y, -2.85] as [number, number, number])} color="#ff2d8a" radius={0.02} />
       <mesh rotation-x={-Math.PI / 2} receiveShadow>
         <planeGeometry args={[14, 14]} />
         <meshPhysicalMaterial map={tiles} roughness={0.2} clearcoat={1} />
