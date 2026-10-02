@@ -125,7 +125,7 @@ Todas las capturas, de cada ronda, están en `docs/screenshots/`.
 |---|---|---|
 | Unitarias (Vitest) | **35/35** en verde | todas en verde |
 | Cobertura de `src/game` | **98,66 %** de sentencias, 92,99 % de ramas y 98,86 % de funciones | más del 80 % |
-| E2E (Playwright, SwiftShader) | **24/24** en verde: 8 flujos en 390×844, 412×915 y 1440×900 | todas en verde |
+| E2E (Playwright, SwiftShader) | **33/33** en verde: 8 flujos del juego y 3 de la app instalable, en 390×844, 412×915 y 1440×900 | todas en verde |
 | Errores de consola en E2E | **0** (la fixture `errors` hace fallar cualquier test que registre uno) | 0 |
 | Lighthouse móvil | rendimiento **96**, accesibilidad **100** | más de 70 y más de 90 |
 | Métricas de Lighthouse | FCP 2,1 s · LCP 2,3 s · TBT 80 ms · CLS 0,011 | — |
@@ -199,6 +199,7 @@ Las capturas se regeneran con `node scripts/pwa-shots.mjs antes|despues` (con `n
 | Prueba | Resultado |
 |---|---|
 | E2E nuevos (`tests/e2e/pwa.spec.ts`) | manifest e iconos válidos, Chrome no da ningún error de instalabilidad, la pantalla de arranque se ve sin JavaScript, y sin conexión se carga la portada, el motor 3D y el estudio; 0 errores de consola |
+| E2E completos | **33/33** en verde (19,5 min con renderizado por software) |
 | Lighthouse CI (local, 3 pasadas) | rendimiento 96–99, accesibilidad 100, buenas prácticas 100, SEO 100 · FCP 1,5 s · LCP 1,5 s · TBT 110–190 ms · CLS 0,011 |
 | Carga inicial | **230,5 kB gzip** contando las 6 fuentes woff2 (139 kB solo JS y CSS); límite 1,5 MB |
 
