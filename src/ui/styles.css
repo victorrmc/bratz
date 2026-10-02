@@ -486,6 +486,7 @@ html.hq .glass {
 
 /* ───── Modales ───── */
 .modal-back {
+  pointer-events: auto;
   position: fixed;
   inset: 0;
   background: rgba(80, 10, 70, 0.32);
