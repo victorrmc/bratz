@@ -94,8 +94,9 @@ No usa backend ni recursos externos en tiempo de ejecución. Todo, incluidas las
 
 ### Sonido
 
-- Música pop original sintetizada con Web Audio, con tres pistas (menú, pasarela y final), batería, bajo, pads, arpegios y melodía.
-- Efectos: clic, destello, moneda, obturador, fanfarria y error.
+- Música original sintetizada con Web Audio: pop para el menú y el final, balear chill en Ibiza, house en la discoteca, guitarra en casa y una pasarela adaptativa (ver «Banda sonora y sonido»).
+- Efectos: clic, destello, moneda, obturador, fanfarria, error, tela, cremallera, tacones, joyas, cierre de bolso y aplausos del jurado.
+- Ajustes con volumen de música y de efectos por separado, y vibración sincronizada.
 - Arranca con «Toca para empezar». Los botones de silencio están siempre visibles.
 
 ### Rendimiento y compatibilidad
@@ -161,6 +162,61 @@ Detalle completo, con criterios y problemas de cada captura, en [`docs/visual-re
 | 4 (final) | 7,2 | 7 | Centro comercial rediseñado (de 6 a 7) |
 
 (24 capturas por ronda.) Las notas son estrictas: un 8 significa «parece un juego comercial».
+
+## Banda sonora y sonido (tarea de audio)
+
+Todo sigue sintetizado con Web Audio, sin ficheros de audio: la carga inicial pasa de unos 139 kB a **unos 143 kB gzip**.
+
+**Música por escenario** (en Fotos, Retos y Jurado; el resto de pantallas mantiene la pista del menú):
+
+| Escenario | Pista | Cómo está hecha |
+|---|---|---|
+| Ibiza al atardecer y playa | Balear chill, 96 ppm | Guitarra de nailon pulsada (Karplus-Strong), shaker, bajo redondo, pads cálidos con reverberación y olas de mar de fondo |
+| Discoteca neón | House, 124 ppm | Bombo a negras con «sidechain», charles abierto a contratiempo, palmas, bajo filtrado y acordes de piano sincopados |
+| Nuestra casa en Ibiza | Guitarra, 84 ppm | Punteo alterno de bajo y agudos, rasgueo al final de cada vuelta y una melodía suave |
+
+- **Pasarela adaptativa (114 ppm):** cada negra coincide con un paso del ciclo de paseo (1,9 pasos/s). Empieza con bombo, bajo y pad tras un filtro cerrado. Durante la ida el filtro se abre y entran el charles, las palmas, el arpegio y la melodía. Al posar llega el clímax (melodía doblada, platillo y aplausos). Las vueltas siguientes se quedan con la base completa.
+- **Pasos a tempo:** suenan los tacones (o las botas o los zapatos planos, según el calzado puesto), alternando izquierda y derecha. El reloj de la música usa el mismo paso limitado que la escena, así que los tirones de carga no la desincronizan.
+- **Cambios de pista** con un fundido corto. Si el hilo principal se atasca, el secuenciador se salta los pasos perdidos en vez de tocarlos todos de golpe.
+
+**Efectos nuevos:**
+
+- **Tela:** al ponerse tops, faldas, pantalones, capas o gorros.
+- **Cremallera:** chaquetas, vestidos, monos, botas y mochilas.
+- **Tacón o paso plano:** calzado.
+- **Tintineo:** joyas, gafas y accesorios del pelo.
+- **Cierre de bolso.**
+- **Aplausos del jurado:** más palmas y un silbido cuantas más estrellas.
+
+**Ajustes:**
+
+- Botón de engranaje junto al de silencio, en la portada y en todas las barras superiores.
+- Volumen de **música** y de **efectos** por separado, **silencio general**, **vibración** y botón **«Probar efectos»**.
+- Al mover el volumen de efectos suena un tacón de muestra.
+- Se guardan en una clave propia de localStorage (`clara-ibiza-audio`), sin tocar `SAVE_VERSION`.
+
+**Vibración sincronizada:** cada efecto tiene un patrón que imita su ritmo (los dientes de la cremallera, las palmas, el «clinc» de la moneda…). Se lanza con la latencia de salida del audio para que coincida con el sonido, y los pasos de la pasarela vibran a tempo. La vibración corta de los botones no pisa el patrón de un efecto disparado en el mismo toque.
+
+**Archivos:**
+
+- `src/audio/engine.ts`: motor, pistas e instrumentos.
+- `src/audio/mapping.ts`: lógica pura de pistas, efectos y desfile.
+- `src/audio/director.ts`: decide qué suena en cada momento.
+- `src/audio/settings.ts` y `src/audio/haptics.ts`: ajustes y vibración.
+- `src/ui/Settings.tsx`: el panel de ajustes.
+- Fuera de esa zona, solo cambia lo imprescindible: el engranaje en `kit.tsx` y `Home.tsx`, y que `App.tsx` usa el director.
+
+**Pruebas:**
+
+- `tests/unit/sonido.test.ts`: 6 pruebas unitarias.
+- `tests/e2e/sonido.spec.ts`: 4 flujos × 3 tamaños de pantalla. Cubren los ajustes y su persistencia, la pista de cada escenario, el efecto y el patrón de vibración de cada tipo de prenda, la intensidad creciente de la pasarela, los pasos a tempo y los aplausos del jurado.
+
+| Antes | Después |
+|---|---|
+| ![Estudio antes](docs/screenshots/sonido/antes-2-estudio.png) | ![Estudio después](docs/screenshots/sonido/despues-2-estudio.png) |
+| ![Portada antes](docs/screenshots/sonido/antes-1-portada.png) | ![Panel de ajustes](docs/screenshots/sonido/despues-3-ajustes.png) |
+
+**Limitación:** el sonido no sale en las capturas, así que se ha comprobado con el registro de efectos del motor (`window.__claraAudio`). En este entorno no hay altavoces: falta escucharlo en un móvil real para ajustar la mezcla a oído. La vibración solo existe en Android: Safari en iPhone no la permite.
 
 ## Limitaciones conocidas
 
