@@ -7,13 +7,31 @@ import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferG
 
 export const UV_SCALE = 10
 
+/** Nivel de detalle global (1 = alto). Reduce segmentos en calidad media/baja. */
+let DETAIL = 1
+const detailListeners: (() => void)[] = []
+export function setDetail(d: number) {
+  if (d === DETAIL) return
+  DETAIL = d
+  for (const f of detailListeners) f()
+}
+export const getDetail = () => DETAIL
+/** Registra una caché de geometrías que debe vaciarse si cambia el detalle. */
+export function onDetailChange(f: () => void) {
+  detailListeners.push(f)
+}
+
 /** Superficie paramétrica (u,v ∈ [0,1]) con UV en unidades de mundo. */
 export function surface(
   nu: number,
   nv: number,
   fn: (u: number, v: number, out: THREE.Vector3) => void,
-  opts: { closedU?: boolean; uvMode?: 'world' | 'param'; flip?: boolean; orient?: 'auto' } = {},
+  opts: { closedU?: boolean; uvMode?: 'world' | 'param'; flip?: boolean; orient?: 'auto'; fixed?: boolean } = {},
 ): THREE.BufferGeometry {
+  if (!opts.fixed && DETAIL < 1) {
+    nu = Math.max(4, Math.round(nu * DETAIL))
+    nv = Math.max(2, Math.round(nv * DETAIL))
+  }
   const pos: number[] = []
   const uv: number[] = []
   const idx: number[] = []
@@ -64,6 +82,7 @@ export function surface(
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
   g.setIndex(idx)
+  g.userData.grid = { nu, nv }
   if (opts.orient === 'auto') orientOutward(g)
   g.computeVertexNormals()
   if (opts.closedU) fixSeamNormals(g, nu, nv)
@@ -125,8 +144,8 @@ export function sweep(
   radius: (t: number, angle: number) => number,
   opts: { radial?: number; segments?: number; capStart?: boolean; capEnd?: boolean; ellipse?: [number, number]; twist?: number; up?: THREE.Vector3 } = {},
 ): THREE.BufferGeometry {
-  const radial = opts.radial ?? 16
-  const segs = opts.segments ?? 24
+  const radial = Math.max(5, Math.round((opts.radial ?? 16) * (DETAIL < 1 ? Math.max(0.6, DETAIL) : 1)))
+  const segs = Math.max(2, Math.round((opts.segments ?? 24) * DETAIL))
   const [ex, ez] = opts.ellipse ?? [1, 1]
   // Marcos de transporte paralelo
   const frames = parallelFrames(curve, segs, opts.up)
@@ -142,7 +161,7 @@ export function sweep(
         .addScaledVector(n, Math.cos(a) * r * ex)
         .addScaledVector(b, Math.sin(a) * r * ez)
     },
-    { closedU: true, flip: true },
+    { closedU: true, flip: true, fixed: true },
   )
   const parts = [geo]
   if (opts.capStart) parts.push(capAt(frames[0], radius(0, 0) * 0.98, radial, ex, ez, true))
@@ -194,7 +213,7 @@ function capAt(f: Frame, r: number, radial: number, ex: number, ez: number, star
         .addScaledVector(f.n, Math.cos(a) * rr * ex)
         .addScaledVector(f.b, Math.sin(a) * rr * ez)
     },
-    { closedU: true, orient: 'auto' },
+    { closedU: true, orient: 'auto', fixed: true },
   )
 }
 

@@ -1,0 +1,16 @@
+import { chromium } from 'playwright'
+const [, , q = 'q=baja&dpr=0.5', css = ''] = process.argv
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+const p = await b.newPage({ viewport: { width: 390, height: 844 } })
+await p.goto('http://localhost:4173/bratz/?' + q)
+await p.waitForSelector('[data-screen]', { timeout: 90000 })
+await p.evaluate(() => { const st = window.__clara.store.getState(); st.finishOnboarding(); st.go('studio') })
+if (!process.env.BLUR) await p.addStyleTag({ content: '*{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}' })
+if (css === 'pants') await p.evaluate(() => { const st = window.__clara.store.getState(); st.setLook((l) => ({ ...l, outfit: { top: { itemId: 'top-corazon', color: '#ff5fae', pattern: 'liso' }, bottom: { itemId: 'pant-flare', color: '#5b84d6', pattern: 'denim' } } })) })
+else if (css === 'hide') await p.evaluate(() => window.__clara.interaction.scene.children.forEach((c) => (c.visible = false)))
+else if (css) await p.addStyleTag({ content: css })
+await p.waitForTimeout(+(process.env.WARM ?? 6000))
+const fps = await p.evaluate(() => new Promise((res) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 5000) requestAnimationFrame(f); else res(n / ((performance.now() - t0) / 1000)) }; requestAnimationFrame(f) }))
+const progs = await p.evaluate(() => window.__clara.interaction.gl.info.programs.length)
+console.log(css || 'base', 'fps', fps.toFixed(1), 'programs', progs)
+await b.close()

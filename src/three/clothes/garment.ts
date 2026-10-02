@@ -236,7 +236,8 @@ export function skirtGeometry(o: SkirtOpts): SkirtGeo {
     { closedU: !o.slit, orient: 'auto' },
   )
   const pos = geo.getAttribute('position') as THREE.BufferAttribute
-  return { geo, rest: new Float32Array(pos.array), rows: nv + 1, cols: nu + 1 }
+  const grid = geo.userData.grid as { nu: number; nv: number }
+  return { geo, rest: new Float32Array(pos.array), rows: grid.nv + 1, cols: grid.nu + 1 }
 }
 
 export function skirtHem(o: SkirtOpts): THREE.BufferGeometry {

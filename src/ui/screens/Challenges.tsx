@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion'
-import { useState, type ReactElement } from 'react'
+import { useCallback, useRef, useState, type ReactElement } from 'react'
+import { useView } from '../../three/view'
 import { useGame } from '../../store/game'
 import { CHALLENGES, JUDGES } from '../../data/challenges'
 import { tagLabel } from '../../game/scoring'
 import { completedCount } from '../../game/economy'
-import { Btn, Modal, Stars, TopBar } from '../kit'
+import { Btn, Modal, Stars, TopBar, useInsetReporter, useInsetTop } from '../kit'
 import { Icon, type IconName } from '../Icon'
 import { Coin } from '../Icon'
 import type { ChallengeDef } from '../../data/types'
@@ -143,6 +144,11 @@ export function JuryScreen() {
   const jury = useGame((s) => s.jury)
   const go = useGame((s) => s.go)
   const startChallenge = useGame((s) => s.startChallenge)
+  const panel = useRef<HTMLDivElement>(null)
+  const setView = useView((s) => s.set)
+  const reporter = useCallback((b: number, r: number) => setView({ insetBottom: b, insetRight: r }), [setView])
+  useInsetTop(60)
+  useInsetReporter(panel, reporter)
   if (!jury) return null
   const sc = jury.score
   const bars: [string, number][] = [
@@ -155,12 +161,13 @@ export function JuryScreen() {
     <>
       <TopBar title="El jurado" />
       <motion.div
+        ref={panel}
         className="glass"
         data-testid="jury"
         initial={{ y: 80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 140, damping: 18 }}
-        style={{ position: 'fixed', left: 10, right: 10, bottom: 'calc(var(--safe-b) + 10px)', maxHeight: '62vh', overflowY: 'auto', padding: 14, margin: '0 auto', maxWidth: 560 }}
+        style={{ position: 'fixed', left: 10, right: 10, bottom: 'calc(var(--safe-b) + 10px)', maxHeight: '58vh', overflowY: 'auto', padding: 14, margin: '0 auto', maxWidth: 560 }}
       >
         <div className="row" style={{ justifyContent: 'center', flexDirection: 'column' }}>
           <Stars n={sc.stars} size={40} animate />

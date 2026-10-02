@@ -7,7 +7,7 @@ import type { Quality } from '../game/save'
 
 export default function DebugPanel() {
   const [fps, setFps] = useState(0)
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
   const quality = useGame((s) => s.save.settings.quality)
   const effective = useGame((s) => s.quality)
   const setSettings = useGame((s) => s.setSettings)
@@ -20,7 +20,7 @@ export default function DebugPanel() {
     <div
       data-testid="debug"
       className="glass"
-      style={{ position: 'fixed', left: 8, bottom: 'calc(var(--safe-b) + 8px)', zIndex: 200, padding: 8, fontSize: 13, borderRadius: 14, maxWidth: 230, background: 'rgba(30,10,40,.78)', color: '#fff' }}
+      style={{ position: 'fixed', left: 8, top: '42%', zIndex: 200, padding: 8, fontSize: 13, borderRadius: 14, maxWidth: 230, background: 'rgba(30,10,40,.78)', color: '#fff' }}
     >
       <button onClick={() => setOpen(!open)} style={{ fontWeight: 800, minHeight: 32 }} data-testid="debug-fps">
         FPS {fps.toFixed(0)} · {effective}

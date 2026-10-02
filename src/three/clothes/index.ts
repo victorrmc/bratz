@@ -32,6 +32,16 @@ export function buildOutfit(look: Look): OutfitResult {
   const style = HAIR_BY_ID[look.hair.styleId]
   const pony = style?.pieces.find((p) => ['ponyLow', 'ponyHigh', 'bunLow', 'bunHigh'].includes(p.kind))
   const ponyAnchor = pony ? (pony.kind === 'ponyLow' || pony.kind === 'bunLow' ? { a: 3.55, b: 0 } : { a: 2.05, b: 0 }) : null
+  // Ropa interior básica cuando falta la parte de arriba o de abajo
+  const o = look.outfit
+  if (!o.dress && !o.top) {
+    const b = buildTop({ ...ITEM_BY_ID['top-palabra'], id: 'base-top', model: 'top', fabric: 'satin', params: { neck: 'tube', hem: 1.1, sleeve: 0 } }, { itemId: 'base-top', color: '#f7d9e6', pattern: 'liso' })
+    pieces.push(...b.pieces)
+  }
+  if (!o.dress && !o.bottom) {
+    const b = buildBottom({ ...ITEM_BY_ID['short-denim'], id: 'base-bottom', model: 'pants', fabric: 'satin', params: { waist: 0.93, length: 0.07, flare: 0, tight: true } }, { itemId: 'base-bottom', color: '#f7d9e6', pattern: 'liso' })
+    pieces.push(...b.pieces)
+  }
   for (const slot of ORDER) {
     const inst = look.outfit[slot]
     if (!inst) continue
@@ -86,6 +96,7 @@ export function buildOutfit(look: Look): OutfitResult {
     if (b.animate) anims.push(b.animate)
   }
 
+  const lastQ = new Float32Array(16).fill(9)
   const qa = new THREE.Quaternion()
   const qb = new THREE.Quaternion()
   const hipR = mirrorX(J.hipL)
@@ -103,6 +114,17 @@ export function buildOutfit(look: Look): OutfitResult {
     update(rig, time) {
       for (const a of anims) a(time)
       if (!deformers.length) return
+      // solo se recalcula si las piernas se han movido
+      let changed = false
+      let k = 0
+      for (const b of ['hipL', 'kneeL', 'hipR', 'kneeR']) {
+        const q = rig.bones[b].quaternion
+        for (const v of [q.x, q.y, q.z, q.w]) {
+          if (Math.abs(v - lastQ[k]) > 2e-4) changed = true
+          lastQ[k++] = v
+        }
+      }
+      if (!changed) return
       // segmentos de las piernas en el espacio de la cadera
       const segs: { a: THREE.Vector3; b: THREE.Vector3; r: (t: number) => number }[] = []
       for (const [hipP, kRel, aRel, hipB, kneeB] of [

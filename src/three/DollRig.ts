@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { DollDef, Expression, Look, MakeupLook } from '../data/types'
+import type { DollDef, Expression, Look, MakeupLook, NailShape } from '../data/types'
 import {
   J,
   armSegs,
@@ -14,7 +14,7 @@ import {
   torsoGeometry,
   FINGERS,
 } from './body'
-import { ellipsoid, sweep } from './geo'
+import { ellipsoid, merge, onDetailChange, sweep } from './geo'
 import { faceTextures } from './face'
 import { skinMaterial, getMaterialQuality } from './materials'
 import { nailGeometry, nailMaterial } from './nails'
@@ -60,6 +60,8 @@ const PARENT: Record<JointName, JointName | 'root'> = {
   ankleR: 'kneeR',
 }
 
+const mergedCache = new Map<string, THREE.BufferGeometry>()
+onDetailChange(() => mergedCache.clear())
 const footCache = new Map<number, { foot: THREE.BufferGeometry; ankle: THREE.BufferGeometry }>()
 function footFor(arch: number) {
   const k = Math.round(arch * 100) / 100
@@ -69,6 +71,12 @@ function footFor(arch: number) {
     footCache.set(k, f)
   }
   return f
+}
+
+function withSphere(g: THREE.BufferGeometry, c: THREE.Vector3, r: number) {
+  const sph = ellipsoid(r, r, r, 20, 14)
+  sph.translate(c.x, c.y, c.z)
+  return merge([g, sph])
 }
 
 // Geometrías del cuerpo compartidas entre muñecas
@@ -82,21 +90,19 @@ function buildShared() {
     torso: torsoGeometry(),
     neck: neckGeometry(),
     upperL: limbGeometry(L.upper),
-    foreL: limbGeometry(L.fore),
+    foreL: withSphere(limbGeometry(L.fore), J.elbowL, 0.0255),
     upperR: limbGeometry(R.upper),
-    foreR: limbGeometry(R.fore),
+    foreR: withSphere(limbGeometry(R.fore), mirrorX(J.elbowL), 0.0255),
     thighL: limbGeometry(LL.thigh),
-    shinL: limbGeometry(LL.shin),
+    shinL: withSphere(limbGeometry(LL.shin), J.kneeL, 0.0375),
     thighR: limbGeometry(RL.thigh),
-    shinR: limbGeometry(RL.shin),
-    earL: earGeometry(1),
-    earR: earGeometry(-1),
+    shinR: withSphere(limbGeometry(RL.shin), mirrorX(J.kneeL), 0.0375),
+    ears: merge([earGeometry(1), earGeometry(-1)]),
     palm: (() => {
       const g = ellipsoid(0.0135, 0.034, 0.022, 24, 16)
       g.translate(0, -0.034, 0)
       return g
     })(),
-    joint: ellipsoid(1, 1, 1, 20, 14),
     fingerSegs: FINGERS.map((f) => {
       const a = f.len * 0.55
       const b = f.len * 0.45
@@ -137,10 +143,88 @@ function buildShared() {
   }
 }
 
-interface Finger {
-  knuckle: THREE.Group
-  mid: THREE.Group
-  nail: THREE.Mesh
+const CURLS = [0, 0.2, 0.35, 0.9]
+const handCache = new Map<string, { skin: THREE.BufferGeometry; nails: THREE.BufferGeometry }>()
+onDetailChange(() => {
+  handCache.clear()
+  footCache.clear()
+  shared = null
+})
+
+/** Construye la mano (coordenadas locales de la muñeca) con los dedos flexionados. */
+function handGeometry(side: 'L' | 'R', curlIn: number, shape: NailShape) {
+  const curl = CURLS.reduce((a, b) => (Math.abs(b - curlIn) < Math.abs(a - curlIn) ? b : a))
+  const key = `${side}|${curl}|${shape}`
+  const hit = handCache.get(key)
+  if (hit) return hit
+  if (!shared) shared = buildShared()
+  const S = shared
+  const s = side === 'L' ? 1 : -1
+  const root = new THREE.Group()
+  const skinParts: [THREE.BufferGeometry, THREE.Object3D][] = []
+  const nailParts: [THREE.BufferGeometry, THREE.Object3D][] = []
+  const palm = new THREE.Object3D()
+  root.add(palm)
+  skinParts.push([S.palm, palm])
+  FINGERS.forEach((f, i) => {
+    const seg = S.fingerSegs[i]
+    const c = curl * (1 + i * 0.18) + 0.08
+    const knuckle = new THREE.Object3D()
+    knuckle.position.set(0.0015 * s, -0.062, f.z)
+    knuckle.rotation.set(0, 0, -s * c * 0.9)
+    root.add(knuckle)
+    skinParts.push([seg.prox, knuckle])
+    const mid = new THREE.Object3D()
+    mid.position.set(0, -seg.a, 0)
+    mid.rotation.set(0, 0, -s * c * 1.1)
+    knuckle.add(mid)
+    skinParts.push([seg.dist, mid])
+    const nail = new THREE.Object3D()
+    nail.position.set(0, -seg.b * 0.35, 0)
+    if (s < 0) nail.scale.x = -1
+    mid.add(nail)
+    nailParts.push([nailGeometry(shape), nail])
+  })
+  const tb = new THREE.Object3D()
+  tb.position.set(-0.004 * s, -0.016, 0.017)
+  tb.rotation.set(0.55, 0, -0.35 * s)
+  root.add(tb)
+  skinParts.push([S.thumb.prox, tb])
+  const tm = new THREE.Object3D()
+  tm.position.set(0, -0.02, 0)
+  tm.rotation.set(0.2, 0, -0.15 * s)
+  tb.add(tm)
+  skinParts.push([S.thumb.dist, tm])
+  const tn = new THREE.Object3D()
+  tn.position.set(0, -0.006, 0)
+  tn.rotation.y = s > 0 ? 0 : Math.PI
+  tm.add(tn)
+  nailParts.push([nailGeometry(shape, 0.0066), tn])
+  root.updateMatrixWorld(true)
+  const bake = (parts: [THREE.BufferGeometry, THREE.Object3D][]) =>
+    merge(
+      parts.map(([g, o]) => {
+        const c = g.clone()
+        c.applyMatrix4(o.matrixWorld)
+        // las mallas reflejadas invierten el orden de los triángulos
+        if (o.matrixWorld.determinant() < 0) {
+          const idx = c.getIndex()
+          if (idx) {
+            const arr = idx.array as Uint16Array | Uint32Array
+            for (let k = 0; k < arr.length; k += 3) {
+              const t = arr[k + 1]
+              arr[k + 1] = arr[k + 2]
+              arr[k + 2] = t
+            }
+          }
+          c.computeVertexNormals()
+        }
+        return c
+      }),
+    )
+  const res = { skin: bake(skinParts), nails: bake(nailParts) }
+  handCache.set(key, res)
+  return res
 }
 
 export class DollRig {
@@ -153,7 +237,8 @@ export class DollRig {
   private faceOpen: { map: THREE.Texture; rm: THREE.Texture } | null = null
   private faceClosed: { map: THREE.Texture; rm: THREE.Texture } | null = null
   private skin: THREE.MeshPhysicalMaterial
-  private fingers: { L: Finger[]; R: Finger[] } = { L: [], R: [] }
+  private hands = {} as Record<'L' | 'R', { skin: THREE.Mesh; nails: THREE.Mesh; curl: number }>
+  private nailShape: NailShape = 'almendra'
   private feet: { L: THREE.Mesh; R: THREE.Mesh }
   private ankles: THREE.Mesh[] = []
   private outfit: OutfitResult | null = null
@@ -213,19 +298,7 @@ export class DollRig {
     add('kneeL', S.shinL)
     add('hipR', S.thighR)
     add('kneeR', S.shinR)
-    add('head', S.earL)
-    add('head', S.earR)
-    // Articulaciones redondeadas (rodillas/codos) para que no se vean huecos al doblar
-    for (const [bone, pos, r] of [
-      ['elbowL', J.elbowL, 0.0255],
-      ['elbowR', mirrorX(J.elbowL), 0.0255],
-      ['kneeL', J.kneeL, 0.0375],
-      ['kneeR', mirrorX(J.kneeL), 0.0375],
-    ] as [JointName, THREE.Vector3, number][]) {
-      const m = add(bone, S.joint)
-      m.position.copy(pos)
-      m.scale.setScalar(r)
-    }
+    add('head', S.ears)
 
     // Cabeza con la cara pintada
     this.headMat = new THREE.MeshPhysicalMaterial({
@@ -241,55 +314,18 @@ export class DollRig {
     this.headMesh.castShadow = true
     this.attach.head.add(this.headMesh)
 
-    // Manos
+    // Manos: palma + dedos fusionados en una malla (y otra para las uñas)
     for (const side of ['L', 'R'] as const) {
-      const s = side === 'L' ? 1 : -1
-      const wrist = this.attach[`wrist${side}`]
       const hand = new THREE.Group()
       hand.position.copy(PIVOTS[`wrist${side}`])
       hand.scale.setScalar(1.18)
-      wrist.add(hand)
-      const palm = new THREE.Mesh(S.palm, this.skin)
-      hand.add(palm)
-      this.skinMeshes.push(palm)
-      FINGERS.forEach((f, i) => {
-        const seg = S.fingerSegs[i]
-        const knuckle = new THREE.Group()
-        knuckle.position.set(0.0015 * s, -0.062, f.z)
-        const prox = new THREE.Mesh(seg.prox, this.skin)
-        knuckle.add(prox)
-        const mid = new THREE.Group()
-        mid.position.set(0, -seg.a, 0)
-        knuckle.add(mid)
-        const dist = new THREE.Mesh(seg.dist, this.skin)
-        mid.add(dist)
-        const nail = new THREE.Mesh(nailGeometry('almendra'), nailMaterial({ shape: 'almendra', color: '#3a0f1f', finish: 'brillo' }))
-        nail.position.set(0, -seg.b * 0.35, 0)
-        if (s < 0) nail.scale.x = -1
-        mid.add(nail)
-        hand.add(knuckle)
-        this.fingers[side].push({ knuckle, mid, nail })
-        this.skinMeshes.push(prox, dist)
-      })
-      // pulgar
-      const tb = new THREE.Group()
-      tb.position.set(-0.004 * s, -0.016, 0.017)
-      tb.rotation.set(0.55, 0, -0.35 * s)
-      const tp = new THREE.Mesh(S.thumb.prox, this.skin)
-      tb.add(tp)
-      const tm = new THREE.Group()
-      tm.position.set(0, -0.02, 0)
-      tm.rotation.set(0.2, 0, -0.15 * s)
-      tb.add(tm)
-      const td = new THREE.Mesh(S.thumb.dist, this.skin)
-      tm.add(td)
-      const tn = new THREE.Mesh(nailGeometry('almendra', 0.0066), nailMaterial({ shape: 'almendra', color: '#3a0f1f', finish: 'brillo' }))
-      tn.position.set(0, -0.006, 0)
-      tn.rotation.y = s > 0 ? 0 : Math.PI
-      tm.add(tn)
-      hand.add(tb)
-      this.skinMeshes.push(tp, td)
-      this.fingers[side].push({ knuckle: tb, mid: tm, nail: tn })
+      this.attach[`wrist${side}`].add(hand)
+      const geo = handGeometry(side, 0.15, 'almendra')
+      const skinM = new THREE.Mesh(geo.skin, this.skin)
+      const nailM = new THREE.Mesh(geo.nails, nailMaterial({ shape: 'almendra', color: '#3a0f1f', finish: 'brillo' }))
+      hand.add(skinM, nailM)
+      this.hands[side] = { skin: skinM, nails: nailM, curl: 0.15 }
+      this.skinMeshes.push(skinM)
     }
 
     // Pies descalzos
@@ -311,13 +347,16 @@ export class DollRig {
   setLook(look: Look) {
     this.setMakeup(look.makeup)
     // Uñas
+    this.nailShape = look.nails.shape
     for (const side of ['L', 'R'] as const) {
-      for (const f of this.fingers[side]) {
-        f.nail.geometry = nailGeometry(look.nails.shape, f === this.fingers[side][4] ? 0.0066 : 0.0058)
-        f.nail.material = nailMaterial(look.nails)
-      }
+      const h = this.hands[side]
+      const g = handGeometry(side, h.curl, this.nailShape)
+      h.skin.geometry = g.skin
+      h.nails.geometry = g.nails
+      h.nails.material = nailMaterial(look.nails)
     }
     // Ropa
+    this.clearMerged()
     this.clearPieces(this.outfit?.pieces)
     this.outfit = buildOutfit(look)
     this.addPieces(this.outfit.pieces)
@@ -331,20 +370,69 @@ export class DollRig {
     // Pelo
     this.clearPieces(this.hair?.pieces)
     this.hair = buildHair(look.hair, Boolean(look.outfit.hat), this.outfit.hatHidesTop)
-    this.addPieces(this.hair.pieces)
+    for (const p of this.hair.pieces) this.attach[p.bone].add(p.mesh)
   }
 
+  /**
+   * Añade las piezas fusionando las que comparten hueso y material en una
+   * sola malla (menos llamadas de dibujo: clave para el rendimiento en móvil).
+   */
   private addPieces(pieces?: Piece[]) {
+    const groups = new Map<string, { bone: JointName; mat: THREE.Material; items: THREE.Mesh[] }>()
+    this.mergedOut = []
     for (const p of pieces ?? []) {
-      p.mesh.castShadow = true
-      this.attach[p.bone].add(p.mesh)
+      const m = p.mesh
+      const mergeable =
+        m instanceof THREE.Mesh && !p.ownsGeometry && m.children.length === 0 && !Array.isArray(m.material) && !m.geometry.getAttribute('hairT') && m.rotation.x === 0 && m.rotation.y === 0 && m.rotation.z === 0 && m.scale.x === 1
+      if (!mergeable) {
+        p.mesh.castShadow = true
+        this.attach[p.bone].add(p.mesh)
+        continue
+      }
+      const mat = (m as THREE.Mesh).material as THREE.Material
+      const key = `${p.bone}|${mat.uuid}`
+      let g = groups.get(key)
+      if (!g) groups.set(key, (g = { bone: p.bone, mat, items: [] }))
+      g.items.push(m as THREE.Mesh)
+    }
+    for (const g of groups.values()) {
+      if (g.items.length === 1) {
+        g.items[0].castShadow = true
+        this.attach[g.bone].add(g.items[0])
+        continue
+      }
+      const key = g.items.map((m) => `${m.geometry.uuid}@${m.position.x.toFixed(4)},${m.position.y.toFixed(4)},${m.position.z.toFixed(4)}`).join('|')
+      let geo = mergedCache.get(key)
+      if (!geo) {
+        geo = merge(
+          g.items.map((m) => {
+            const c = m.geometry.clone()
+            if (m.position.lengthSq() > 0) c.translate(m.position.x, m.position.y, m.position.z)
+            return c
+          }),
+        )
+        mergedCache.set(key, geo)
+        if (mergedCache.size > 80) {
+          const first = mergedCache.keys().next().value as string
+          mergedCache.delete(first)
+        }
+      }
+      const mesh = new THREE.Mesh(geo, g.mat)
+      mesh.castShadow = true
+      this.attach[g.bone].add(mesh)
+      this.mergedOut.push(mesh)
     }
   }
+  private mergedOut: THREE.Mesh[] = []
   private clearPieces(pieces?: Piece[]) {
     for (const p of pieces ?? []) {
       p.mesh.removeFromParent()
       if (p.ownsGeometry && p.mesh instanceof THREE.Mesh) p.mesh.geometry.dispose()
     }
+  }
+  private clearMerged() {
+    for (const m of this.mergedOut) m.removeFromParent()
+    this.mergedOut = []
   }
 
   setMakeup(m: MakeupLook) {
@@ -372,10 +460,11 @@ export class DollRig {
   private applyFace(closed: boolean) {
     const f = closed ? this.faceClosed : this.faceOpen
     if (!f) return
+    const first = !this.headMat.map
     this.headMat.map = f.map
     this.headMat.roughnessMap = f.rm
     this.headMat.metalnessMap = f.rm
-    this.headMat.needsUpdate = true
+    if (first) this.headMat.needsUpdate = true
   }
 
   setPose(id: string) {
@@ -426,16 +515,17 @@ export class DollRig {
     this.root.position.y = this.heelLift + p.rootY + br * 0.05
     this.bones.hips.position.y = J.hips.y + Math.abs(br) * 0.1
 
-    // Dedos
+    // Dedos: se cambia la geometría al nivel de flexión más cercano
     for (const side of ['L', 'R'] as const) {
       const curl = side === 'L' ? p.curlL : p.curlR
-      const s = side === 'L' ? 1 : -1
-      this.fingers[side].forEach((f, i) => {
-        if (i === 4) return
-        const c = curl * (1 + i * 0.18) + 0.08
-        f.knuckle.rotation.set(0, 0, -s * c * 0.9)
-        f.mid.rotation.set(0, 0, -s * c * 1.1)
-      })
+      const h = this.hands[side]
+      const q = CURLS.reduce((a, b) => (Math.abs(b - curl) < Math.abs(a - curl) ? b : a))
+      if (q !== h.curl) {
+        h.curl = q
+        const g = handGeometry(side, q, this.nailShape)
+        h.skin.geometry = g.skin
+        h.nails.geometry = g.nails
+      }
     }
 
     this.hair?.update(time, this.walking ? 1.6 : 1, this.bones.head)

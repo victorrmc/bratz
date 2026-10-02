@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { ItemDef, ItemInstance } from '../../data/types'
 import { fabricMaterial, solid } from '../materials'
 import { torsoPoint, TORSO_Y0 } from '../body'
-import { ellipsoid, extrude, heartShape, starShape, torus } from '../geo'
+import { ellipsoid, extrude, heartShape, onDetailChange, starShape, torus } from '../geo'
 import {
   ARM_SEGS,
   LEG_SEGS,
@@ -49,6 +49,7 @@ const str = (p: P, k: string, d: string) => (typeof p[k] === 'string' ? (p[k] as
 const bool = (p: P, k: string) => p[k] === true
 
 const geoCache = new Map<string, THREE.BufferGeometry>()
+onDetailChange(() => geoCache.clear())
 export function cg(key: string, make: () => THREE.BufferGeometry) {
   let g = geoCache.get(key)
   if (!g) {

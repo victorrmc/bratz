@@ -10,12 +10,16 @@ export const interaction = {
   /** callbacks registrados por la escena */
   capture: null as null | ((opts: { w: number; h: number; type?: string; quality?: number; post?: boolean }) => string | null),
   fps: 60,
+  scene: null as unknown,
+  gl: null as unknown,
 }
 
 interface ViewState {
   insetBottom: number
   insetRight: number
   insetTop: number
+  /** si está definido, sustituye a insetBottom para la cámara */
+  camBottom?: number
   ready: boolean
   progress: number
   set: (p: Partial<Omit<ViewState, 'set'>>) => void

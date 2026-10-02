@@ -182,12 +182,14 @@ export function FloatingGlints({ count = 40, area = [3, 2.2, 2], center = [0, 1.
       }),
     [color],
   )
+  void phases
   useFrame((s) => {
     const t = s.clock.elapsedTime
     mat.size = 0.05 + 0.025 * Math.sin(t * 2)
-    const pos = geo.attributes.position as THREE.BufferAttribute
-    for (let i = 0; i < count; i++) pos.setY(i, pos.getY(i) + Math.sin(t * 0.8 + phases[i]) * 0.0006)
-    pos.needsUpdate = true
+    if (ref.current) {
+      ref.current.rotation.y = Math.sin(t * 0.15) * 0.15
+      ref.current.position.y = Math.sin(t * 0.5) * 0.03
+    }
   })
   return <points ref={ref} geometry={geo} material={mat} />
 }

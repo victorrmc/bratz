@@ -49,10 +49,18 @@ export function GlossyFloor({ color, quality, size = 14, mirror = 0.45, roughnes
       </mesh>
     )
   }
+  if (quality === 'baja') {
+    return (
+      <mesh rotation-x={-Math.PI / 2}>
+        <circleGeometry args={[size / 2, 48]} />
+        <meshLambertMaterial color={color} />
+      </mesh>
+    )
+  }
   return (
     <mesh rotation-x={-Math.PI / 2} receiveShadow>
       <circleGeometry args={[size / 2, 64]} />
-      <meshPhysicalMaterial color={color} roughness={roughness * 0.8} clearcoat={1} clearcoatRoughness={0.15} />
+      <meshStandardMaterial color={color} roughness={roughness * 0.7} metalness={0.1} />
     </mesh>
   )
 }

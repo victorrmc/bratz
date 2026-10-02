@@ -11,6 +11,7 @@ import { CHALLENGE_BY_ID } from '../data/challenges'
 import { defaultLookFor, equip } from '../game/look'
 import { DollRig } from './DollRig'
 import { setMaterialQuality } from './materials'
+import { setDetail } from './geo'
 import { Confetti, SparkleBurst } from './effects'
 import { interaction, useView } from './view'
 import type { Look } from '../data/types'
@@ -54,6 +55,7 @@ function Doll({ quality, holder, rigRef, controlledPose }: { quality: Q; holder:
   const screen = useGame((s) => s.screen)
   const rig = useMemo(() => {
     setMaterialQuality(quality)
+    setDetail(quality === 'alta' ? 1 : quality === 'media' ? 0.75 : 0.45)
     return new DollRig(DOLL_BY_ID[look.dollId] ?? DOLL_BY_ID[PROTAGONIST_ID])
   }, [look.dollId, quality])
   useEffect(() => {
@@ -93,7 +95,7 @@ const PRESETS: Record<string, { target: [number, number, number]; height: number
 
 function CameraRig({ preset, orbit = false, interactive = true }: { preset: string; orbit?: boolean; interactive?: boolean }) {
   const { camera, gl, size } = useThree()
-  const insetBottom = useView((s) => s.insetBottom)
+  const insetBottom = useView((s) => s.camBottom ?? s.insetBottom)
   const insetRight = useView((s) => s.insetRight)
   const insetTop = useView((s) => s.insetTop)
   const cur = useRef({ pos: new THREE.Vector3(0, 1.2, 4), target: new THREE.Vector3(0, 1, 0), init: false })
@@ -193,6 +195,8 @@ function HolderControl({ holder, y, follow }: { holder: React.RefObject<THREE.Gr
 function CaptureBridge() {
   const { gl, scene, camera } = useThree()
   useEffect(() => {
+    interaction.scene = scene
+    interaction.gl = gl
     interaction.capture = ({ w, h, type = 'image/png', quality = 0.92, post = true }) => {
       try {
         if (post && composerRef) composerRef.render()
@@ -293,9 +297,10 @@ function SceneContent({ quality }: { quality: Q }) {
     case 'challenge':
     case 'wardrobe':
     case 'shop':
+    case 'challenges':
       scene = <StudioScene quality={quality} />
       y = 0.06
-      camera = <CameraRig preset={screen === 'studio' || screen === 'challenge' ? cam : 'cuerpo'} />
+      camera = <CameraRig preset={screen === 'studio' || screen === 'challenge' ? cam : 'cuerpo'} interactive={screen !== 'challenges'} />
       break
     case 'photo':
       scene = <StageScene id={stage} quality={quality} />
@@ -358,10 +363,18 @@ export default function Stage3D() {
     return q === 'baja' || q === 'media' || q === 'alta' ? q : detectQuality()
   })
   const quality: Q = setting === 'auto' ? auto : setting
-  const maxDpr = Math.min(window.devicePixelRatio || 1, quality === 'alta' ? 2 : quality === 'media' ? 1.5 : 1)
+  const forced = Number(new URLSearchParams(location.search).get('dpr')) || 0
+  const maxDpr = forced || Math.min(window.devicePixelRatio || 1, quality === 'alta' ? 2 : quality === 'media' ? 1.5 : 1)
   const [dpr, setDpr] = useState(maxDpr)
-  useEffect(() => setDpr(maxDpr), [maxDpr])
-  useEffect(() => setQuality(quality), [quality, setQuality])
+  // al bajar de calidad no se vuelve a la resolución máxima
+  useEffect(() => setDpr((d) => Math.min(d, maxDpr)), [maxDpr])
+  useEffect(() => {
+    if (forced) setDpr(forced)
+  }, [forced])
+  useEffect(() => {
+    setQuality(quality)
+    document.documentElement.classList.toggle('hq', quality === 'alta')
+  }, [quality, setQuality])
   return (
     <Canvas
       className="stage3d"
@@ -374,18 +387,22 @@ export default function Stage3D() {
         gl.toneMappingExposure = 0.95
       }}
     >
-      <PerformanceMonitor
-        flipflops={4}
-        onIncline={() => setDpr((d) => Math.min(maxDpr, d + 0.25))}
+      {!forced && <PerformanceMonitor
+        ms={200}
+        iterations={5}
+        bounds={() => [32, 55]}
+        flipflops={6}
+        onIncline={() => setDpr((d) => Math.min(maxDpr, d + 0.2))}
         onDecline={() =>
           setDpr((d) => {
-            const nd = Math.max(0.75, d - 0.25)
+            const minDpr = quality === 'baja' ? 0.35 : quality === 'media' ? 0.6 : 0.75
+            const nd = Math.max(Math.min(minDpr, maxDpr), d - 0.2)
             if (nd === d && setting === 'auto') setAuto((q) => (q === 'alta' ? 'media' : 'baja'))
             return nd
           })
         }
         onFallback={() => setting === 'auto' && setAuto('baja')}
-      />
+      />}
       <SceneContent quality={quality} />
       <Post quality={quality} />
       <CaptureBridge />

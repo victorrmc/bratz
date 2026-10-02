@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { HairLook, HairPieceKind } from '../data/types'
 import { HAIR_BY_ID } from '../data/hair'
 import { HEAD, J, headPoint } from './body'
-import { curveOf, gauss, merge, smoothstep, surface, sweep, table, torus } from './geo'
+import { curveOf, gauss, merge, onDetailChange, smoothstep, surface, sweep, table, torus } from './geo'
 import { hairTexture } from './textures'
 import { getMaterialQuality } from './materials'
 import type { Piece } from './clothes/wear'
@@ -75,17 +75,16 @@ function withT(g: THREE.BufferGeometry, fn: (i: number, uvx: number, uvy: number
 /** Superficie con parámetro v = 0..1 de raíz a punta (para las puntas de color). */
 function tSurface(nu: number, nv: number, fn: (u: number, v: number, out: THREE.Vector3) => void, flip = false): THREE.BufferGeometry {
   const g = surface(nu, nv, fn, { flip })
-  const n = (nu + 1) * (nv + 1)
-  const arr = new Float32Array(n)
-  for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) arr[j * (nu + 1) + i] = j / nv
+  const { nu: gu, nv: gv } = g.userData.grid as { nu: number; nv: number }
+  const arr = new Float32Array((gu + 1) * (gv + 1))
+  for (let j = 0; j <= gv; j++) for (let i = 0; i <= gu; i++) arr[j * (gu + 1) + i] = j / gv
   g.setAttribute('hairT', new THREE.BufferAttribute(arr, 1))
   return g
 }
 
 function tSweep(curve: THREE.Curve<THREE.Vector3>, r: (t: number, a: number) => number, opts: Parameters<typeof sweep>[2] = {}): THREE.BufferGeometry {
-  const radial = opts.radial ?? 16
-  const segs = opts.segments ?? 24
   const g = sweep(curve, r, { ...opts, capStart: false, capEnd: false })
+  const { nu: radial, nv: segs } = g.userData.grid as { nu: number; nv: number }
   const arr = new Float32Array((radial + 1) * (segs + 1))
   for (let j = 0; j <= segs; j++) for (let i = 0; i <= radial; i++) arr[j * (radial + 1) + i] = j / segs
   g.setAttribute('hairT', new THREE.BufferAttribute(arr, 1))
@@ -417,6 +416,7 @@ function hairMaterial(h: HairLook): THREE.MeshPhysicalMaterial {
 // ─────────────────────── Ensamblado ───────────────────────
 
 const geoCache = new Map<string, THREE.BufferGeometry>()
+onDetailChange(() => geoCache.clear())
 function cached(key: string, make: () => THREE.BufferGeometry) {
   let g = geoCache.get(key)
   if (!g) {

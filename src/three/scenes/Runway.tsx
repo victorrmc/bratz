@@ -165,19 +165,19 @@ export default function RunwayScene({ quality, holder, rig, special = false, onF
     const progress = st.phase === 'walk' ? Math.min(1, st.t / walkDur) : 1
     if (st.phase === 'walk' && progress < 0.4) {
       // plano lateral amplio que acompaña
-      camPos.set(2.2 - progress * 2, 1.3, z + 1.6)
+      camPos.set(3.4 - progress * 4, 1.45, z + 3.0)
       look.set(0, 1.0, z)
     } else if (st.phase === 'walk') {
       // plano frontal bajo, en retroceso
-      camPos.set(0.35, 0.95, z + 2.6 - (progress - 0.4) * 0.6)
+      camPos.set(0.45, 1.0, z + 4.2 - (progress - 0.4) * 1.2)
       look.set(0, 1.05, z)
     } else if (st.phase === 'pose') {
       // primer plano de la pose
       const k = Math.min(1, st.t / 1.5)
-      camPos.set(0.25 - k * 0.15, 1.35, END_Z + 1.9 - k * 0.6)
+      camPos.set(0.3 - k * 0.2, 1.3, END_Z + 3.6 - k * 1.4)
       look.set(0, 1.25, END_Z)
     } else {
-      camPos.set(-1.6, 1.4, z + 2.2)
+      camPos.set(-2.4, 1.5, z + 3.4)
       look.set(0, 1.0, z)
     }
     camera.position.lerp(camPos, Math.min(1, dt * 2.5))

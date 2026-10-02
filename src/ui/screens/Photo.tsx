@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useGame } from '../../store/game'
 import { STAGES, POSES } from '../../data/stages'
 import { STORY } from '../../data/story'
-import { Btn, IconBtn, Modal, TopBar, useInsetReporter, useInsetTop } from '../kit'
+import { Btn, IconBtn, Modal, TopBar, useInsetReporter } from '../kit'
 import { Icon } from '../Icon'
 import { interaction, useView } from '../../three/view'
 import { audio, buzz } from '../../audio/engine'
@@ -196,7 +196,6 @@ export default function PhotoScreen() {
   const insetBottom = useView((s) => s.insetBottom)
   const insetRight = useView((s) => s.insetRight)
   const reporter = useCallback((b: number, r: number) => setView({ insetBottom: b, insetRight: r }), [setView])
-  useInsetTop(70)
   useInsetReporter(sheet, reporter)
   const [vw, setVw] = useState({ w: window.innerWidth, h: window.innerHeight })
   useEffect(() => {
@@ -214,6 +213,13 @@ export default function PhotoScreen() {
   const fw = fh * 0.75
   const rect = { x: (freeW - fw) / 2, y: 66 + (freeH - fh) / 2, w: fw, h: fh }
   const stageDef = STAGES.find((s) => s.id === stage)!
+  // la cámara encuadra exactamente el rectángulo de la foto
+  const camTop = rect.y
+  const camBottom = vw.h - rect.y - rect.h
+  useEffect(() => {
+    useView.getState().set({ insetTop: camTop, camBottom })
+    return () => useView.getState().set({ insetTop: 0, camBottom: undefined })
+  }, [camTop, camBottom])
 
   const shoot = () => {
     audio.shutter()

@@ -82,12 +82,16 @@ textarea {
 
 /* ───── Glass ───── */
 .glass {
-  background: var(--glass);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  background: linear-gradient(160deg, rgba(255, 246, 251, 0.9), rgba(255, 226, 242, 0.84));
   border: 1.5px solid var(--glass-border);
   box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   border-radius: var(--radius);
+}
+/* El desenfoque sobre el 3D es caro: solo en calidad alta */
+html.hq .glass {
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
 }
 
 .display {
@@ -236,7 +240,7 @@ textarea {
   left: calc(var(--safe-l) + 8px);
   right: calc(var(--safe-r) + 8px);
   bottom: calc(var(--safe-b) + 8px);
-  max-height: 46vh;
+  max-height: 42vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -484,9 +488,7 @@ textarea {
 .modal-back {
   position: fixed;
   inset: 0;
-  background: rgba(80, 10, 70, 0.28);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(80, 10, 70, 0.32);
   display: grid;
   place-items: center;
   z-index: 60;

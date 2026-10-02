@@ -1,0 +1,22 @@
+import { chromium } from 'playwright'
+const [, , screen = 'studio', q = 'q=baja'] = process.argv
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+const p = await b.newPage({ viewport: { width: 390, height: 844 } })
+await p.goto('http://localhost:4173/bratz/?' + q)
+await p.waitForSelector('[data-screen]', { timeout: 90000 })
+await p.evaluate((s) => { const st = window.__clara.store.getState(); st.finishOnboarding(); st.go(s) }, screen)
+await p.addStyleTag({ content: '*{backdrop-filter:none!important}' })
+if (process.env.HIDE) await p.evaluate(() => window.__clara.interaction.scene.children.forEach((c) => (c.visible = false)))
+await p.waitForTimeout(4000)
+const cdp = await p.context().newCDPSession(p)
+await cdp.send('Profiler.enable')
+await cdp.send('Profiler.start')
+await p.waitForTimeout(5000)
+const { profile } = await cdp.send('Profiler.stop')
+const self = new Map()
+const dt = profile.timeDeltas
+const idToNode = new Map(profile.nodes.map(n => [n.id, n]))
+profile.samples.forEach((id, i) => { const n = idToNode.get(id); const k = `${n.callFrame.functionName || '(anon)'} ${n.callFrame.url.split('/').pop()}:${n.callFrame.lineNumber}`; self.set(k, (self.get(k) || 0) + (dt[i] || 0)) })
+const tot = [...self.values()].reduce((a, b) => a + b, 0)
+console.log([...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([k, v]) => `${(v / tot * 100).toFixed(1)}% ${k}`).join('\n'))
+await b.close()

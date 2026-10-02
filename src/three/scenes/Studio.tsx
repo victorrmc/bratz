@@ -32,7 +32,7 @@ export default function StudioScene({ quality }: { quality: string }) {
       {/* ciclorama */}
       <mesh position={[0, 2.4, -0.5]} rotation-y={Math.PI}>
         <cylinderGeometry args={[3.4, 3.4, 5, 64, 1, true, -Math.PI * 0.55, Math.PI * 1.1]} />
-        <meshStandardMaterial color="#ffd6ec" side={THREE.BackSide} roughness={0.9} />
+        {quality === 'baja' ? <meshLambertMaterial color="#ffd6ec" side={THREE.BackSide} /> : <meshStandardMaterial color="#ffd6ec" side={THREE.BackSide} roughness={0.9} />}
       </mesh>
       <GlossyFloor color="#f7bfe0" quality={quality} />
       <Podium color="#ffc6e6" radius={0.55} />

@@ -5,6 +5,10 @@ import { useView } from './three/view'
 import { audio } from './audio/engine'
 import { Toasts } from './ui/kit'
 import Loading from './ui/Loading'
+import { interaction } from './three/view'
+
+// Acceso para pruebas automáticas y depuración
+;(window as unknown as { __clara: unknown }).__clara = { store: useGame, interaction, view: useView }
 
 // Carga diferida: el motor 3D y cada modo de juego van en trozos separados.
 const Stage3D = lazy(() => import('./three/Stage3D'))

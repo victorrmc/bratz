@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { NailLook, NailShape } from '../data/types'
-import { surface } from './geo'
+import { onDetailChange, surface } from './geo'
 import { patternTexture } from './textures'
 
 // Uñas: lámina curvada sobre la falange distal con forma configurable.
@@ -30,11 +30,13 @@ function widthAt(shape: NailShape, t: number): number {
   }
 }
 
-const geoCache = new Map<NailShape, THREE.BufferGeometry>()
+const geoCache = new Map<string, THREE.BufferGeometry>()
+onDetailChange(() => geoCache.clear())
 
 /** Uña en coordenadas locales de la falange: eje −y hacia la punta, dorso hacia +x. */
 export function nailGeometry(shape: NailShape, fingerR = 0.0058): THREE.BufferGeometry {
-  const hit = geoCache.get(shape)
+  const key = `${shape}|${fingerR}`
+  const hit = geoCache.get(key)
   if (hit) return hit
   const len = LEN[shape]
   const r = fingerR + 0.0007
@@ -53,7 +55,7 @@ export function nailGeometry(shape: NailShape, fingerR = 0.0058): THREE.BufferGe
     },
     { uvMode: 'param', orient: 'auto' },
   )
-  geoCache.set(shape, g)
+  geoCache.set(key, g)
   return g
 }
 
