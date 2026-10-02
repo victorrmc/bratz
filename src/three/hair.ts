@@ -905,11 +905,11 @@ interface ChainSpec {
 }
 
 const SPECS: Record<'pony' | 'braid' | 'curtain' | 'bun' | 'tendril', ChainSpec> = {
-  pony: { stiff: 30, damp: 0.965, maxDev: 0.07, grav: 5, wind: 0.25 },
-  braid: { stiff: 36, damp: 0.97, maxDev: 0.055, grav: 5, wind: 0.15 },
-  curtain: { stiff: 95, damp: 0.94, maxDev: 0.02, grav: 2, wind: 0.12 },
+  pony: { stiff: 30, damp: 0.965, maxDev: 0.07, grav: 5, wind: 0.08 },
+  braid: { stiff: 36, damp: 0.97, maxDev: 0.055, grav: 5, wind: 0.05 },
+  curtain: { stiff: 95, damp: 0.94, maxDev: 0.02, grav: 2, wind: 0.04 },
   bun: { stiff: 170, damp: 0.9, maxDev: 0.012, grav: 3, wind: 0 },
-  tendril: { stiff: 42, damp: 0.95, maxDev: 0.035, grav: 5, wind: 0.35 },
+  tendril: { stiff: 42, damp: 0.95, maxDev: 0.035, grav: 5, wind: 0.12 },
 }
 
 /** Pesos de piel: cada vértice se reparte entre los dos huesos del tramo más cercano. */
@@ -1012,14 +1012,17 @@ class HairChain {
     _m.decompose(_v, _q, _s)
     const scale = _s.x
     for (let k = 0; k <= N; k++) target[k].copy(rest[k]).applyMatrix4(_m)
-    if (!this.ready || dt > 0.25 || dt < 0) {
+    // tras una pausa larga (cambio de pantalla) se recoloca en reposo;
+    // con fotogramas lentos simula como mucho 1/15 s para no explotar
+    if (!this.ready || dt > 1 || dt < 0) {
       for (let k = 0; k <= N; k++) {
         p[k].copy(target[k])
         pp[k].copy(target[k])
       }
       this.ready = true
-      if (dt > 0.25 || dt < 0) dt = 0
+      dt = 0
     }
+    dt = Math.min(dt, 1 / 15)
     // la gravedad solo actúa cuando la cabeza se inclina respecto al reposo
     _g.set(0, -1, 0).applyQuaternion(_q).negate().add(_v2.set(0, -1, 0)).multiplyScalar(spec.grav * scale)
     _c.copy(HC).applyMatrix4(_m)
