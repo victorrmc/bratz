@@ -29,6 +29,8 @@ for (const id of list.split(',')) {
     ['tres-cuartos', 'cara', -0.8],
     ['espalda', 'cuerpo', Math.PI],
   ]
+  // vista de la nuca de cerca (moños, trenzas y flores), si se pide con NUCA=1
+  if (process.env.NUCA) views.push(['nuca', 'cara', 2.5])
   for (const [name, cam, rot] of views) {
     await S((s, c, a) => { c.interaction.dollRotY = a[1]; s.setCam(a[0]) }, [cam, rot])
     await W(5000)
