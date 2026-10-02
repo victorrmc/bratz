@@ -230,7 +230,7 @@ Las capturas de todos los escenarios están en `docs/screenshots/escenarios-vivo
   - En playa, discoteca, Ibiza, ferry y Nuestra casa, una franja del fondo lejos de la muñeca cambia entre dos capturas separadas 1,8 s, es decir, el escenario se mueve.
   - Todo con cero errores de consola, en los tres viewports.
 - **Test unitario del catálogo:** ahora espera 7 escenarios no secretos en lugar de 6. Es el único cambio en un archivo de test existente.
-- **Resultados:** `npm test` 35/35 en verde, `npm run build` sin errores y los E2E nuevos 6/6 en verde (2 tests × 3 viewports). Batería E2E completa: pendiente de terminar.
+- **Resultados:** `npm test` 35/35 en verde, `npm run build` sin errores y los E2E nuevos 6/6 en verde (2 tests × 3 viewports). `npm run e2e` completo **30/30** en verde (los 24 anteriores más los 6 nuevos), con cero errores de consola.
 - **Carga inicial:** sin cambios, unos 138 kB gzip (JS de entrada y CSS). El código de escenarios va en su propio trozo diferido, que pasa de 4,6 a 11,7 kB gzip.
 - **Guardado:** no se toca, y `SAVE_VERSION` sigue igual.
 
