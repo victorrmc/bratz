@@ -159,6 +159,7 @@ Detalle completo, con criterios y problemas de cada captura, en [`docs/visual-re
 | 2 | 6,5 | 4 | «Nuestra casa» rediseñada, mandíbula en forma de corazón, muslo sin atravesar la ropa, cámara de pasarela, centro comercial con más color |
 | 3 | 7,1 | 6 | Falda sin manchas en la cadera, manos con uñas y reloj, velo en el armario, piel de vinilo, ojos más grandes |
 | 4 (final) | 7,2 | 7 | Centro comercial rediseñado (de 6 a 7) |
+| Tarea 1 (muñecas) | — | Pers. 8 | Ojos 3D, relieve de cara y torso, piel con subsurface, manos y uñas nuevas (solo personajes; ver abajo) |
 
 (24 capturas por ronda.) Las notas son estrictas: un 8 significa «parece un juego comercial».
 
@@ -200,6 +201,60 @@ Detalle completo, con criterios y problemas de cada captura, en [`docs/visual-re
    - Escenarios y poses en `src/data/stages.ts`.
    - Textos del final en `src/data/story.ts`.
 4. Ejecuta `npm test`: los tests comprueban que cada categoría tiene al menos 12 prendas, que los ids son únicos y que las especiales tienen precio.
+
+## Muñecas con acabado comercial (tarea 1)
+
+Objetivo: subir la nota más baja de la revisión visual (la calidad de los personajes) de 7 a 8. Todo sigue siendo procedural: no se añade ningún recurso externo.
+
+**Cara y ojos** (`src/three/face.ts`):
+
+- **Ojos 3D.** La cara pintada recorta el almendrado (un `alphaMap` con `alphaTest`) y detrás va un ojo de verdad:
+  - Globo que sigue la superficie de la cara, con el **iris hundido** 0,7 mm.
+  - **Córnea transparente** en casquete sobre el iris, con mezcla aditiva y un IOR alto: solo aporta reflejos del entorno y brillos especulares que se mueven con la cámara.
+  - **Párpados con volumen:** la línea de pestañas en relieve, un párpado inferior de piel y un pliegue sobre el ojo que reutiliza la textura pintada (conserva sombra y pestañas).
+  - Textura del globo con esclerótica sombreada en las comisuras, iris con fibras, collarete y anillo límbico, pupila y la sombra que proyecta el párpado.
+  - Los dos ojos se fusionan por material: **5 llamadas de dibujo** en total. El parpadeo oculta el ojo 3D y muestra el párpado pintado. El guiño cambia a una variante de geometría con un solo ojo.
+- **Normal map de la cara** generado en canvas: punta y aletas de la nariz, orificios, filtrum, borde del bermellón, línea entre labios, comisuras, surco del mentón, barbilla y pómulos. Sigue la forma de los labios de cada expresión.
+
+**Cuerpo** (`src/three/body.ts`):
+
+- **Normal map del torso** calculado a partir de la superficie real: clavículas en S con el hueco supraclavicular, escotadura yugular, esternón, ombligo y crestas de la cadera. Por detrás: columna, omóplatos y hoyuelos lumbares. El torso pasa a UV paramétricas (antes no se usaban).
+- **Codos sin escalón:** los perfiles de brazo y antebrazo empalman.
+
+**Piel** (`src/three/materials.ts`): la piel tiene un **subsurface aproximado**: *wrap lighting* que tiñe de rojizo la zona del terminador, más un **rim cálido** en los bordes (orejas, dedos, perfil). Se aplica con `onBeforeCompile` a cuerpo, manos y cabeza. En calidad baja se mantiene el wrap, pero sin rim ni normal maps.
+
+**Manos** (`src/three/body.ts` y `src/three/nails.ts`):
+
+- Palma esculpida que sigue la línea de nudillos (el meñique nace más arriba), con nudillos y tendones en el dorso y eminencias tenar e hipotenar en la palma.
+- Dedos de una sola pieza con tres falanges, abultamiento en las articulaciones y yemas.
+- Pulgar con base carnosa.
+- La palma empalma con la muñeca sin anillo.
+- **Uñas con grosor**, canto en la punta y curva en C.
+
+**Clara intacta:** su ficha, el moño bajo caoba (`#5a2018`), las uñas oscuras y el reloj en la muñeca izquierda no cambian. El E2E lo comprueba.
+
+`src/three/DollRig.ts` solo cambia lo imprescindible para montar las piezas: el material de cabeza, los ojos, el torso y las manos.
+
+### Antes y después
+
+| | Antes | Después |
+|---|---|---|
+| Ojos | ![antes](docs/screenshots/munecas/antes-03-ojos.png) | ![después](docs/screenshots/munecas/despues-03-ojos.png) |
+| Cara en 3/4 | ![antes](docs/screenshots/munecas/antes-02-cara-tres-cuartos.png) | ![después](docs/screenshots/munecas/despues-02-cara-tres-cuartos.png) |
+| Manos | ![antes](docs/screenshots/munecas/antes-05-manos-cerca.png) | ![después](docs/screenshots/munecas/despues-05-manos-cerca.png) |
+| Cuerpo | ![antes](docs/screenshots/munecas/antes-07-cuerpo-tres-cuartos.png) | ![después](docs/screenshots/munecas/despues-07-cuerpo-tres-cuartos.png) |
+
+La puntuación está en [`docs/visual-review.md`](docs/visual-review.md#tarea-muñecas-con-acabado-comercial-munecas): personajes **8** en todas las capturas de cara, manos y cuerpo (antes, de 6 a 8).
+
+### Pruebas y rendimiento
+
+| Prueba | Resultado |
+|---|---|
+| Unitarias (`npm test`) | 35/35 |
+| E2E (`npm run e2e`) | **30/30** en verde, con los 2 tests nuevos de `tests/e2e/munecas.spec.ts` en los 3 viewports y 0 errores de consola |
+| Build y carga inicial | sin cambios en el bundle inicial (unos 138 kB gzip); el trozo 3D crece unos 5 kB gzip |
+| FPS en el estudio, CPU 4x más lenta | 30,0 (antes 29,7) |
+| FPS en la pasarela, CPU 4x más lenta | 33,4 (antes 35,5; dentro de la variación entre ejecuciones con SwiftShader) |
 
 ## Estructura
 
