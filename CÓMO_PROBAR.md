@@ -15,6 +15,11 @@
 7. **Pasarela**: Clara desfila con el look actual.
 8. **Armario**: el look guardado aparece con su miniatura. Puedes renombrarlo, duplicarlo o borrarlo.
 
+## Instalarlo y jugar sin conexión
+
+- **Android (Chrome):** menú ⋮ → «Instalar aplicación». **iPhone (Safari):** Compartir → «Añadir a pantalla de inicio».
+- Ábrelo una vez con conexión y espera unos segundos: después funciona en modo avión.
+
 ## Ver el final sin completar todo
 
 - **Atajo secreto:** en la portada 3D, toca **5 veces el corazoncito** que hay bajo el título. Se abre la pasarela especial en Ibiza y después la carta.

@@ -162,6 +162,52 @@ Detalle completo, con criterios y problemas de cada captura, en [`docs/visual-re
 
 (24 capturas por ronda.) Las notas son estrictas: un 8 significa «parece un juego comercial».
 
+## App instalable, sin conexión y publicación (tarea 10)
+
+### Antes y después
+
+| | Antes | Después |
+|---|---|---|
+| Arranque (mientras llega el JavaScript) | ![](docs/screenshots/pwa/antes-1-arranque.png) | ![](docs/screenshots/pwa/despues-1-arranque.png) |
+| Recargar sin conexión | ![](docs/screenshots/pwa/antes-2-sin-conexion.png) | ![](docs/screenshots/pwa/despues-2-sin-conexion.png) |
+| Sin conexión, tras «Toca para empezar» | — (no carga) | ![](docs/screenshots/pwa/despues-3-sin-conexion-3d.png) |
+
+Las capturas se regeneran con `node scripts/pwa-shots.mjs antes|despues` (con `npm run preview` en marcha).
+
+### Qué se ha hecho
+
+- **Manifest** (`public/manifest.webmanifest`): nombre «Rumbo a Ibiza», en español, `standalone`, rutas relativas (vale con cualquier `BASE_PATH`), colores de la marca e iconos 192 y 512, maskable y SVG.
+- **Icono propio** (`public/icon.svg`): puesta de sol sobre el mar de Ibiza con un corazón y destellos. Los PNG (incluido `apple-touch-icon.png` para iOS) salen de `node scripts/icons.mjs`. El dibujo de la versión maskable cabe en la zona segura.
+- **Pantalla de arranque**: va dentro de `index.html` con CSS en línea, así que se ve al instante, antes de que se descargue el JavaScript (antes, una pantalla rosa vacía). React la sustituye al montar. En Android, además, el sistema compone su propia pantalla con el icono y `background_color`.
+- **Service worker** (`public/sw.js`): al compilar, un pequeño plugin de `vite.config.ts` le inyecta la lista de archivos de `dist/` y una versión (hash del contenido) y registra el service worker solo en producción.
+  - Se precarga **todo el juego** (unos 630 kB gzip, incluidos el motor 3D y todos los modos), así que tras la primera visita funciona sin conexión de principio a fin.
+  - Archivos con hash: caché primero. Navegación: red primero (para recibir actualizaciones) y, sin red, la portada guardada.
+  - Al publicar una versión nueva, se instala en segundo plano y se activa la próxima vez que se abre la app; las cachés antiguas se borran entonces.
+  - La carga inicial no cambia: el service worker se registra tras el evento `load` y la precarga va en segundo plano.
+- **Guardado**: no se ha tocado. La partida sigue en `localStorage` y funciona igual sin conexión.
+
+### CI y publicación
+
+- **`.github/workflows/ci.yml`** (en cada push y PR), tres trabajos:
+  1. Tests unitarios, build y **comprobación del tamaño** (`npm run size`, `scripts/check-size.mjs`): HTML, JS de entrada, CSS y fuentes iniciales deben sumar menos de **1,5 MB gzip**; si no, falla.
+  2. **Lighthouse CI** (`.github/lighthouserc.json`, perfil móvil, mediana de 3 pasadas). Umbrales que hacen fallar: rendimiento ≥ 80, accesibilidad ≥ 90, buenas prácticas ≥ 90, LCP ≤ 4 s y CLS ≤ 0,1. Avisos: SEO ≥ 80, FCP ≤ 3 s y TBT ≤ 400 ms. Los informes quedan como artefacto.
+  3. **E2E** con Playwright y Chromium (todas las suites, los tres tamaños de pantalla).
+- **`.github/workflows/deploy.yml`**: listo. Al hacer push a `main`, pasa tests, compila con `BASE_PATH=/<repo>/`, comprueba el tamaño y publica en GitHub Pages.
+
+### Resultados
+
+| Prueba | Resultado |
+|---|---|
+| E2E nuevos (`tests/e2e/pwa.spec.ts`) | manifest e iconos válidos, Chrome no da ningún error de instalabilidad, la pantalla de arranque se ve sin JavaScript, y sin conexión se carga la portada, el motor 3D y el estudio; 0 errores de consola |
+| Lighthouse CI (local, 3 pasadas) | rendimiento 96–99, accesibilidad 100, buenas prácticas 100, SEO 100 · FCP 1,5 s · LCP 1,5 s · TBT 110–190 ms · CLS 0,011 |
+| Carga inicial | **230,5 kB gzip** contando las 6 fuentes woff2 (139 kB solo JS y CSS); límite 1,5 MB |
+
+### Lo que falta y depende del dueño del repo
+
+- Hacer el repositorio **público** (o tener un plan de pago) y en **Settings → Pages → Source** elegir **«GitHub Actions»**.
+- Crear la rama `main`: el despliegue se lanza con cada push a `main` (o a mano desde la pestaña Actions).
+- Instalarla en el móvil: Android/Chrome muestra «Instalar aplicación» en el menú; en iPhone, Safari → Compartir → «Añadir a pantalla de inicio». Hay que abrirla una vez con conexión para que se guarde.
+
 ## Limitaciones conocidas
 
 - **Criterio visual no cumplido del todo:** en la última ronda ninguna captura baja de 7, pero muchas se quedan en 7 y no en 8. El factor limitante es el acabado de las muñecas, que son 100 % procedurales y no modelos esculpidos a mano. Es la mayor diferencia frente a un juego comercial.
@@ -170,7 +216,7 @@ Detalle completo, con criterios y problemas de cada captura, en [`docs/visual-re
   - El repositorio es **privado**, y GitHub Pages en repos privados requiere un plan de pago.
   - Pages no está activado.
   - Todavía no existe la rama `main`.
-  - El workflow `.github/workflows/deploy.yml` ya está listo. Se despliega solo al hacer push a `main` en cuanto Pages esté activado con «Source: GitHub Actions».
+  - El workflow `.github/workflows/deploy.yml` ya está listo. Se despliega solo al hacer push a `main` en cuanto Pages esté activado con «Source: GitHub Actions» (ver el apartado de la tarea 10).
 - **Textos de la carta provisionales:** el texto de la carta, la fecha («Próxima parada: Ibiza ✈ 2026») y la firma están en `src/data/story.ts` como borrador, a falta del texto definitivo.
 - **Audio:** los navegadores exigen un gesto del usuario antes de sonar, por eso la música empieza tras «Toca para empezar».
 
@@ -211,5 +257,7 @@ src/three   motor 3D: cuerpo, cara, pelo, ropa, materiales, texturas, escenas, e
 src/ui      pantallas, componentes, iconos SVG propios
 src/audio   música y efectos con Web Audio
 tests/      unitarios (Vitest) y E2E (Playwright)
-scripts/    capturas, medición de FPS y utilidades de revisión
+scripts/    capturas, medición de FPS, iconos, tamaño del bundle y utilidades de revisión
+public/     manifest, service worker e iconos de la app instalable
+.github/    CI (tests, tamaño, Lighthouse, E2E) y despliegue en Pages
 ```
