@@ -8,7 +8,6 @@ import { audio } from './engine'
 import { footwearFor, runwayCue, sfxForItem, trackFor } from './mapping'
 import { useAudioSettings } from './settings'
 
-// Acceso para pruebas automáticas
 /** Reloj del desfile en segundos (accesible para pruebas). */
 const runwayClock = { t: 0 }
 
