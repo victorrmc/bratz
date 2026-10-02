@@ -6,10 +6,64 @@
     <meta name="theme-color" content="#ff5fae" />
     <meta name="description" content="Rumbo a Ibiza: juego 3D de moda para crear y vestir muñecas." />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Rumbo a Ibiza" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Rumbo a Ibiza</title>
+    <style>
+      /* Pantalla de arranque: se ve al instante, antes de que llegue el JavaScript. React la sustituye al montar. */
+      #arranque {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 18px;
+        background: radial-gradient(circle at 50% 28%, #ffe7f5 0%, #ffb5da 40%, #b98bff 100%);
+        font-family: system-ui, sans-serif;
+        color: #fff;
+        text-align: center;
+      }
+      #arranque svg {
+        width: 132px;
+        height: 132px;
+        border-radius: 30px;
+        box-shadow: 0 10px 30px rgba(160, 20, 110, 0.35);
+        animation: latido 1.6s ease-in-out infinite;
+      }
+      #arranque b {
+        font-size: 34px;
+        letter-spacing: 0.5px;
+        text-shadow: 0 2px 10px rgba(150, 20, 100, 0.55);
+      }
+      #arranque span {
+        font-weight: 700;
+        opacity: 0.9;
+        text-shadow: 0 1px 4px rgba(150, 20, 100, 0.5);
+      }
+      @keyframes latido {
+        50% {
+          transform: scale(1.06);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #arranque svg {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="arranque" role="status" aria-label="Cargando Rumbo a Ibiza">
+        <svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="ac" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9fd0"/><stop offset=".55" stop-color="#ff6fb5"/><stop offset="1" stop-color="#b98bff"/></linearGradient><radialGradient id="as" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff3b0"/><stop offset="1" stop-color="#ffb347"/></radialGradient></defs><rect width="512" height="512" fill="url(#ac)"/><circle cx="256" cy="340" r="168" fill="url(#as)" opacity=".9"/><path d="M0 352c48-18 96-18 144 0s96 18 144 0 96-18 144 0 64 14 80 8v152H0z" fill="#3fb6e8"/><path d="M0 388c48-16 96-16 144 0s96 16 144 0 96-16 144 0 64 12 80 6v118H0z" fill="#1f8fd0"/><path d="M256 404c-86-56-122-104-122-148 0-38 28-66 62-66 26 0 46 14 60 36 14-22 34-36 60-36 34 0 62 28 62 66 0 44-36 92-122 148z" fill="#fff" stroke="#ff2d8a" stroke-width="10"/><path d="M356 112l9 23 23 9-23 9-9 23-9-23-23-9 23-9z" fill="#fff"/></svg>
+        <b>Rumbo a Ibiza</b>
+        <span>Preparando la maleta…</span>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
