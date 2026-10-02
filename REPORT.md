@@ -57,7 +57,7 @@ No usa backend ni recursos externos en tiempo de ejecución. Todo, incluidas las
   - Iridiscencia en lo holográfico, las perlas y las escamas.
   - Metal y gemas en joyería.
 - **Sin clipping:** la ropa son capas desplazadas sobre la superficie del cuerpo. Las faldas se deforman cada frame para envolver las piernas en cualquier pose.
-- **Peluquería:** 16 peinados con color base, mechas, puntas de color fantasía (shader propio) y brillo ajustable.
+- **Peluquería:** 20 peinados (ver «Pelo de nueva generación») con color base, mechas, puntas de color fantasía (shader propio) y brillo ajustable.
 - **Maquillaje por capas:** sombra, delineado (fino, gato o gráfico), pestañas, colorete, iluminador, labios (mate, gloss o metalizado) y pegatinas o gemas (estrellas, corazones, brillantes, pecas, mariposa). Cada uno con su paleta y su intensidad.
 - **Uñas:** cinco formas, doce colores y cuatro acabados, visibles con la cámara de manos.
 - **Etiquetas y rareza:** cada prenda tiene etiquetas de estilo y una rareza (común, especial o secreta).
@@ -109,6 +109,73 @@ No usa backend ni recursos externos en tiempo de ejecución. Todo, incluidas las
 - **Carga:** una portada 2D instantánea. El motor 3D se descarga y construye tras el primer toque, con barra de progreso, y cada modo va en su propio trozo de código.
 - **Pantalla:** vertical y horizontal (en horizontal el panel va a la derecha), áreas seguras del notch y objetivos táctiles de 44 px o más.
 - **Sin WebGL:** se muestra un mensaje amable.
+
+## Pelo de nueva generación (tarea 2)
+
+Cambios en `src/three/hair.ts` y `src/data/hair.ts`. Además, en `src/data/types.ts` se han añadido los tipos de las piezas nuevas.
+
+### Aspecto
+
+- **Brillo anisotrópico de Kajiya-Kay.** Cada vértice guarda la dirección de su mechón (`hairDir`) y el shader calcula dos lóbulos de brillo por cada luz direccional:
+  - uno claro y estrecho, desplazado hacia la raíz;
+  - otro teñido del color del pelo, más ancho y granulado con la propia textura.
+  
+  El resultado es la banda de brillo que sigue la forma de la cabeza, en lugar de la mancha de plástico de antes. El regulador **Brillo del pelo** controla su intensidad y su anchura.
+- **Raíz más oscura** (atributo `hairR`): en melenas, coletas y trenzas, la raíz es más oscura. En el casquete se oscurecen la raya y el nacimiento del pelo.
+- **Mechones sueltos en el contorno:** pelos finos que se despegan del casquete y de los lados de las melenas. Hay 8, 16 o 26 según la calidad (menos en los peinados pulidos), y se ocultan bajo los gorros.
+
+### Física secundaria
+
+- Las coletas, las trenzas, las melenas largas, los moños sueltos y sus mechones colgantes cuelgan de una **cadena de huesos con muelles**:
+  - partículas integradas con Verlet, a 60 Hz con subpasos;
+  - longitud fija entre nodos;
+  - límite de desviación;
+  - colisión con la cabeza;
+  - una gravedad que solo actúa cuando la cabeza se inclina.
+- La malla se deforma con *skinning* en la GPU (`SkinnedMesh`), así que el coste en la CPU es de unas pocas partículas por pieza.
+- Al **girar** a la muñeca con el dedo o al **caminar** por la pasarela, el pelo se queda atrás, rebota y se asienta. En reposo hay una brisa muy suave.
+- Cada tipo de pieza tiene su propio ajuste: la melena es rígida, la coleta es suelta y el moño solo tiembla.
+
+### Peinados nuevos (de 16 a 20)
+
+| Peinado | Piezas | Física |
+|---|---|---|
+| **Recogido de boda ibicenca** | Corona trenzada de sien a sien, moño bajo suelto, mechones cortos ondulados en la cara y flores (almendro, buganvilla y jazmín) alrededor del moño y en la sien | Moño y tres mechones colgantes |
+| **Trenza lateral de espiga** | El pelo barre la nuca hasta una trenza gruesa que cae sobre el hombro | Trenza |
+| **Moño despeinado** | Moño alto con lazadas flojas y mechones en la cara | Moño y tres mechones colgantes |
+| **Coleta de burbujas** | Coleta alta dividida en cuatro burbujas con gomas | Coleta |
+
+Las flores son geometría procedural con colores por vértice y *sheen*. No se usa ningún recurso externo.
+
+### Antes y después
+
+Las capturas están en `docs/screenshots/pelo/`: `antes/` y `despues/`. Se generan con `node scripts/hair-shots.mjs <carpeta> <peinados> [giro]`.
+
+| Antes | Después |
+|---|---|
+| ![Moño bajo antes](docs/screenshots/pelo/antes/mono-bajo-frente.png) | ![Moño bajo después](docs/screenshots/pelo/despues/mono-bajo-frente.png) |
+| ![Coleta antes, girando](docs/screenshots/pelo/antes/coleta-alta-giro.png) | ![Coleta después, girando](docs/screenshots/pelo/despues/coleta-alta-giro.png) |
+
+| Recogido de boda ibicenca | Trenza de espiga | Moño despeinado | Coleta de burbujas |
+|---|---|---|---|
+| ![](docs/screenshots/pelo/despues/boda-ibicenca-nuca.png) | ![](docs/screenshots/pelo/despues/trenza-espiga-tres-cuartos.png) | ![](docs/screenshots/pelo/despues/mono-despeinado-tres-cuartos.png) | ![](docs/screenshots/pelo/despues/coleta-burbujas-espalda.png) |
+
+### Pruebas
+
+- **Unitarias:** `tests/unit/pelo.test.ts` comprueba el catálogo: 20 peinados, ids únicos, las piezas del recogido de boda y que cada peinado nuevo tiene física.
+- **E2E:** `tests/e2e/pelo.spec.ts`, en las tres resoluciones:
+  - elegir los cuatro peinados nuevos, comprobando el número de cadenas de física;
+  - que la coleta oscile al girar a la muñeca y se asiente después;
+  - que las trenzas se muevan al caminar por la pasarela.
+  
+  Para eso, `window.__claraHair` expone el número de cadenas y el balanceo.
+- RESULTADOS_E2E
+- **Carga inicial:** sin cambios, unos 139 kB gzip. El código del pelo va en el trozo 3D, que pasa de unos 279 a unos 284 kB gzip.
+
+### Límites
+
+- Las cadenas no chocan con el cuerpo, solo con la cabeza. La desviación está limitada para que la coleta no atraviese la espalda en los giros normales, pero en un giro muy brusco puede rozarla.
+- El *save* no cambia: los peinados nuevos son solo ids nuevos en `look.hair.styleId`.
 
 ## Capturas destacadas (ronda final)
 
