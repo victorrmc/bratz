@@ -194,19 +194,88 @@ export function solid(color: string, opts: Partial<THREE.MeshPhysicalMaterialPar
   return m
 }
 
+// ───────────── Piel ─────────────
+// Vinilo de muñeca con un subsurface aproximado: la luz «envuelve» el
+// terminador con un tono rojizo (wrap lighting) y un rim cálido en los
+// bordes simula la luz que atraviesa las zonas finas (orejas, dedos, nariz).
+
+const SSS_CHUNK = THREE.ShaderChunk.lights_physical_pars_fragment.replace(
+  'vec3 irradiance = dotNL * directLight.color;',
+  `vec3 irradiance = dotNL * directLight.color;
+	{
+		float sssNL = dot( geometryNormal, directLight.direction );
+		float sssWrap = saturate( ( sssNL + SKIN_WRAP ) / ( 1.0 + SKIN_WRAP ) );
+		reflectedLight.directDiffuse += max( sssWrap - dotNL, 0.0 ) * directLight.color * SKIN_SSS * BRDF_Lambert( material.diffuseColor );
+	}`,
+)
+
+/** Aplica el subsurface aproximado y el rim cálido a un material de piel. */
+export function patchSkin(m: THREE.MeshPhysicalMaterial, rim = 0.32): THREE.MeshPhysicalMaterial {
+  const hi = quality !== 'baja'
+  m.defines = { ...(m.defines ?? {}), SKIN_WRAP: '0.55', SKIN_SSS: 'vec3(1.0, 0.42, 0.3)', SKIN_RIM: `vec3(${(1.0 * rim).toFixed(3)}, ${(0.55 * rim).toFixed(3)}, ${(0.42 * rim).toFixed(3)})` }
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_pars_fragment>', SSS_CHUNK)
+    if (hi)
+      sh.fragmentShader = sh.fragmentShader.replace(
+        '#include <opaque_fragment>',
+        `{
+			float rimV = 1.0 - saturate( dot( normal, normalize( vViewPosition ) ) );
+			outgoingLight += SKIN_RIM * rimV * rimV * rimV * ( diffuseColor.rgb * 0.6 + reflectedLight.indirectDiffuse * 1.5 );
+		}
+		#include <opaque_fragment>`,
+      )
+  }
+  m.customProgramCacheKey = () => `skin-sss-${hi ? 1 : 0}`
+  return m
+}
+
 export function skinMaterial(color: string): THREE.MeshPhysicalMaterial {
   const key = `skin|${color}|${quality}`
   const hit = cache.get(key)
   if (hit) return hit
-  const m = new THREE.MeshPhysicalMaterial({
-    color,
-    roughness: 0.48,
-    clearcoat: quality === 'baja' ? 0 : 0.22,
-    clearcoatRoughness: 0.38,
-    sheen: quality === 'baja' ? 0 : 0.6,
-    sheenRoughness: 0.45,
-    sheenColor: new THREE.Color('#ffb8b0'),
-  })
+  const m = patchSkin(
+    new THREE.MeshPhysicalMaterial({
+      color,
+      roughness: 0.46,
+      clearcoat: quality === 'baja' ? 0 : 0.22,
+      clearcoatRoughness: 0.38,
+      sheen: quality === 'baja' ? 0 : 0.5,
+      sheenRoughness: 0.45,
+      sheenColor: new THREE.Color('#ffb8b0'),
+    }),
+  )
   cache.set(key, m)
   return m
+}
+
+/** Piel del torso: la misma, con el relieve de clavículas, esternón, ombligo y espalda. */
+export function torsoSkinMaterial(color: string, normalMap: THREE.Texture | null): THREE.MeshPhysicalMaterial {
+  const key = `skinTorso|${color}|${quality}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  const m = skinMaterial(color).clone()
+  patchSkin(m)
+  if (normalMap && quality !== 'baja') {
+    m.normalMap = normalMap
+    m.normalScale.set(1, 1)
+  }
+  cache.set(key, m)
+  return m
+}
+
+/** Material de la cabeza: la cara pintada con recorte de los ojos, relieve y la misma piel. */
+export function headSkinMaterial(): THREE.MeshPhysicalMaterial {
+  return patchSkin(
+    new THREE.MeshPhysicalMaterial({
+      color: '#ffffff',
+      roughness: 1,
+      metalness: 1,
+      clearcoat: quality === 'baja' ? 0 : 0.15,
+      clearcoatRoughness: 0.4,
+      sheen: 0.3,
+      sheenColor: new THREE.Color('#ffd9d2'),
+      alphaTest: 0.5,
+    }),
+    0.26,
+  )
 }
