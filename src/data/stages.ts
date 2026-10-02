@@ -7,6 +7,7 @@ export const STAGES: StageDef[] = [
   { id: 'redcarpet', name: 'Alfombra roja', mood: 'Photocall, focos y flashes de los paparazzi.' },
   { id: 'room', name: 'Habitación Y2K', mood: 'Peluches, pósteres, lámpara de lava y teléfono de concha.' },
   { id: 'ibiza', name: 'Ibiza al atardecer', mood: 'Casitas blancas, buganvillas y el sol cayendo frente a Es Vedrà.' },
+  { id: 'ferry', name: 'Ferry a Ibiza', mood: 'Cubierta de madera, brisa salada, gaviotas y la isla esperándonos al fondo.' },
   {
     id: 'casa',
     name: 'Nuestra casa en Ibiza',
