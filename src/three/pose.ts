@@ -137,7 +137,12 @@ export const POSE_BUILDERS: Record<string, () => Pose> = {
   idle() {
     const p = restPose()
     relaxedArms(p)
-    contrapposto(p, 1, 0.8)
+    contrapposto(p, 1, 0.9)
+    // un brazo algo adelantado y flexionado: postura más natural y con actitud
+    p.shoulderR = e(-0.12, 0.1, -0.16)
+    p.elbowR = e(-0.42, 0, 0)
+    p.shoulderL = e(0.08, 0, 0.17)
+    p.head = e(0.03, 0.08, -0.06)
     return p
   },
   hip() {
