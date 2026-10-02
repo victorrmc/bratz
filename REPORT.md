@@ -121,17 +121,58 @@ Todas las capturas, de cada ronda, están en `docs/screenshots/`.
 
 ## Resultados de las pruebas
 
-RESULTADOS_PLACEHOLDER
+| Prueba | Resultado | Objetivo |
+|---|---|---|
+| Unitarias (Vitest) | **35/35** en verde | todas en verde |
+| Cobertura de `src/game` | **98,66 %** de sentencias, 92,99 % de ramas y 98,86 % de funciones | más del 80 % |
+| E2E (Playwright, SwiftShader) | **24/24** en verde: 8 flujos en 390×844, 412×915 y 1440×900 | todas en verde |
+| Errores de consola en E2E | **0** (la fixture `errors` hace fallar cualquier test que registre uno) | 0 |
+| Lighthouse móvil | rendimiento **96**, accesibilidad **100** | más de 70 y más de 90 |
+| Métricas de Lighthouse | FCP 2,1 s · LCP 2,3 s · TBT 80 ms · CLS 0,011 | — |
+| FPS en el estudio, CPU 4x más lenta | **29,7** de media (otra ejecución: 30,2), calidad baja | 30 o más |
+| FPS en la pasarela, CPU 4x más lenta | **35,5** de media | 30 o más |
+| Bundle inicial | **unos 139 kB gzip** (JS de entrada y CSS) | menos de 1,5 MB |
+| Bundle 3D (tras «Toca para empezar») | unos 420 kB gzip más | — |
+
+Los flujos E2E cubren:
+
+- El onboarding.
+- Ponerse prendas de todas las categorías, peinado, maquillaje y uñas, y probar todas las cámaras.
+- Guardar un look, recargar la página y usar el armario (renombrar, duplicar y borrar).
+- Una foto en cada escenario, comprobando la firma del PNG.
+- Un reto, con su puntuación y sus monedas.
+- Comprar en la tienda.
+- El final del corazón, con la carta y la foto del escenario secreto.
+- El final completando los 15 retos.
+
+Los datos crudos de FPS están en `docs/perf.json`. Se miden con `node scripts/perf.mjs`.
+
+**Sobre los FPS:** este entorno no tiene GPU, así que el renderizado se hace por software con SwiftShader, que es muchísimo más lento que cualquier móvil real. El sistema adaptativo reduce la resolución y la calidad hasta rondar los 30 fps incluso en esas condiciones. En un móvil real con GPU, la calidad automática se queda en media o alta.
 
 ## Histórico de puntuaciones visuales
 
 Detalle completo, con criterios y problemas de cada captura, en [`docs/visual-review.md`](docs/visual-review.md).
 
-HISTORICO_PLACEHOLDER
+| Ronda | Nota media | Nota mínima | Principales correcciones tras la ronda |
+|---|---|---|---|
+| 1 | 4,7 | 2 | Sin animaciones de salida que dejaban la interfaz a medias, márgenes con paneles ocultos, encuadre de manos, pelo con mechones, cara de Clara refinada |
+| 2 | 6,5 | 4 | «Nuestra casa» rediseñada, mandíbula en forma de corazón, muslo sin atravesar la ropa, cámara de pasarela, centro comercial con más color |
+| 3 | 7,1 | 6 | Falda sin manchas en la cadera, manos con uñas y reloj, velo en el armario, piel de vinilo, ojos más grandes |
+| 4 (final) | 7,2 | 7 | Centro comercial rediseñado (de 6 a 7) |
+
+(24 capturas por ronda.) Las notas son estrictas: un 8 significa «parece un juego comercial».
 
 ## Limitaciones conocidas
 
-LIMITACIONES_PLACEHOLDER
+- **Criterio visual no cumplido del todo:** en la última ronda ninguna captura baja de 7, pero muchas se quedan en 7 y no en 8. El factor limitante es el acabado de las muñecas, que son 100 % procedurales y no modelos esculpidos a mano. Es la mayor diferencia frente a un juego comercial.
+- **FPS medidos con renderizado por software:** en el estudio con la CPU 4x más lenta la media es de 29,7 a 30,2 fps, justo en el límite de 30. Habría que medirlo en un móvil real.
+- **No está desplegado todavía:**
+  - El repositorio es **privado**, y GitHub Pages en repos privados requiere un plan de pago.
+  - Pages no está activado.
+  - Todavía no existe la rama `main`.
+  - El workflow `.github/workflows/deploy.yml` ya está listo. Se despliega solo al hacer push a `main` en cuanto Pages esté activado con «Source: GitHub Actions».
+- **Textos de la carta provisionales:** el texto de la carta, la fecha («Próxima parada: Ibiza ✈ 2026») y la firma están en `src/data/story.ts` como borrador, a falta del texto definitivo.
+- **Audio:** los navegadores exigen un gesto del usuario antes de sonar, por eso la música empieza tras «Toca para empezar».
 
 ## Cómo añadir prendas nuevas
 
