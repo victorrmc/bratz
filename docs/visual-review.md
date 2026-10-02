@@ -92,3 +92,41 @@ Las capturas están en `docs/screenshots/<ronda>/`, con un viewport de 390×844 
 - Cámara de la pasarela que se aleja en vertical y destellos de los fotógrafos fuera del plano.
 - Centro comercial con más color.
 - Pose de reposo más natural.
+
+## Ronda 3 (`r3`)
+
+| Captura | Pers. | Ropa | Luz | Comp. | UI | Wow | Nota | Problemas detectados |
+|---|---|---|---|---|---|---|---|---|
+| 00 portada 2D | — | — | — | 8 | 9 | 8 | 8 | Correcta |
+| 01 inicio | 7 | 7 | 8 | 8 | 8 | 8 | 7 | Persiste la mancha de la cadera |
+| 02 estudio | 7 | 7 | 8 | 7 | 8 | 7 | 7 | Mancha de cadera |
+| 03–05 frente/perfil/espalda | 7 | 7 | 8 | 8 | — | 7 | 7 | Mancha de cadera (pierna libre en contrapposto) |
+| 06 cara | 8 | — | 8 | 8 | 8 | 8 | 8 | Cara en forma de corazón, sin esquinas |
+| 07 manos | 7 | — | 8 | 6 | 8 | 7 | 6 | La mano no queda centrada |
+| 08 pies | 7 | 8 | 8 | 7 | — | 7 | 7 | Correcta |
+| 09 Alba / Nayra / Vega | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correctas |
+| 10–12 pelo / maquillaje / uñas | 8 | 8 | 8 | 8 | 8 | 8 | 8 | Correctas |
+| 13 retos | — | — | 8 | 8 | 8 | 7 | 7 | Correcta |
+| 14 reto | 7 | 8 | 8 | 8 | 8 | 7 | 7 | Correcta |
+| 15 jurado | 8 | 8 | 8 | 8 | 8 | 8 | 8 | Correcta |
+| 16 disco | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
+| 16 centro comercial | 7 | 8 | 6 | 7 | 8 | 6 | 6 | Sigue algo apagado |
+| 16 playa | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
+| 16 alfombra roja | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
+| 16 habitación Y2K | 7 | 8 | 7 | 8 | 8 | 7 | 7 | Correcta |
+| 16 Ibiza | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
+| 16 nuestra casa | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Ya es distinta: puerta azul en arco y buganvillas |
+| 17 pasarela | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Plano general correcto |
+| 18 armario | 7 | 8 | 8 | 6 | 8 | 7 | 6 | La muñeca de fondo compite con las tarjetas |
+| 19 tienda | 7 | 8 | 8 | 8 | 8 | 7 | 7 | Correcta |
+| 20 final pasarela | 8 | 8 | 8 | 8 | 7 | 8 | 7 | Vestido de hada y corona; el título roza la cabeza |
+| 21 carta | — | — | 8 | 8 | 9 | 8 | 8 | Correcta |
+
+**Correcciones aplicadas tras la ronda 3:**
+
+- El deformador de la falda también actúa en la parte alta del muslo, lo que elimina la mancha de la cadera.
+- Encuadre de manos centrado en la mano izquierda (uñas y reloj).
+- Centro comercial con escaparates saturados y un corazón de neón.
+- Fondo del armario velado para que destaquen las tarjetas.
+- Piel con acabado de vinilo de muñeca (más brillo y un sheen cálido).
+- Cuello más corto y ojos más grandes.
