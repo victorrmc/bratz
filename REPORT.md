@@ -22,7 +22,7 @@ No usa backend ni recursos externos en tiempo de ejecución. Todo, incluidas las
   - **Vega**, rockera.
   - **Alba**, romántica boho.
 - **Clara según la descripción:**
-  - Pelo caoba recogido en moño bajo, con raya al medio y la frente despejada.
+  - Pelo caoba recogido en moño bajo, con raya al medio y la frente despejada. Por defecto lleva el **recogido de boda ibicenca** (moño bajo suelto con corona trenzada y flores).
   - Piel clara, cejas arqueadas, ojos oscuros y labios carnosos.
   - Uñas oscuras y un reloj inteligente de correa clara en la **muñeca izquierda**.
 - **Cuerpo paramétrico:**
@@ -146,6 +146,8 @@ Cambios en `src/three/hair.ts` y `src/data/hair.ts`. Además, en `src/data/types
 | **Coleta de burbujas** | Coleta alta dividida en cuatro burbujas con gomas | Coleta |
 
 Las flores son geometría procedural con colores por vértice y *sheen*. No se usa ningún recurso externo.
+
+Clara empieza con el recogido de boda ibicenca (`src/data/characters.ts`). Las partidas guardadas conservan el peinado que ya tenían.
 
 ### Antes y después
 
