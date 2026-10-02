@@ -90,9 +90,8 @@ function Mall({ quality }: { quality: string }) {
     return t
   }, [])
   const windows = [
-    { x: -2.2, c: '#ff5fae' },
-    { x: 0, c: '#8f5bff' },
-    { x: 2.2, c: '#2fb8ff' },
+    { x: -1.75, c: '#ff5fae' },
+    { x: 1.75, c: '#2fb8ff' },
   ]
   return (
     <>
@@ -100,13 +99,17 @@ function Mall({ quality }: { quality: string }) {
       <ThreePointLights key1="#ffffff" fill="#ffc6e4" rim="#b9a4ff" k={0.8} />
       <color attach="background" args={['#b98be6']} />
       <fog attach="fog" args={['#c9a0ea', 7, 15]} />
-      <NeonTube points={heartShape(0.35).getSpacedPoints(50).map((p) => [p.x, 3.05 + p.y, -2.85] as [number, number, number])} color="#ff2d8a" radius={0.02} />
+      <mesh position={[0, 1.6, -3.2]}>
+        <planeGeometry args={[2.2, 3.2]} />
+        <meshStandardMaterial map={patternTexture('rayas', '#ffb3d9', '#ffffff')} roughness={0.7} />
+      </mesh>
+      <NeonTube points={heartShape(0.5).getSpacedPoints(60).map((p) => [p.x, 2.2 + p.y, -3.1] as [number, number, number])} color="#ff2d8a" radius={0.024} />
       <mesh rotation-x={-Math.PI / 2} receiveShadow>
         <planeGeometry args={[14, 14]} />
         <meshPhysicalMaterial map={tiles} roughness={0.2} clearcoat={1} />
       </mesh>
       {windows.map((w) => (
-        <group key={w.x} position={[w.x, 0, -3]}>
+        <group key={w.x} position={[w.x, 0, -2.6]} rotation-y={-Math.sign(w.x) * 0.35}>
           <mesh position={[0, 1.4, 0]}>
             <boxGeometry args={[2, 2.8, 0.1]} />
             <meshStandardMaterial color="#ffffff" />

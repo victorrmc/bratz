@@ -130,3 +130,42 @@ Las capturas están en `docs/screenshots/<ronda>/`, con un viewport de 390×844 
 - Fondo del armario velado para que destaquen las tarjetas.
 - Piel con acabado de vinilo de muñeca (más brillo y un sheen cálido).
 - Cuello más corto y ojos más grandes.
+
+## Ronda 4 (`r4`, final)
+
+| Captura | Pers. | Ropa | Luz | Comp. | UI | Wow | Nota | Comentario |
+|---|---|---|---|---|---|---|---|---|
+| 00 portada 2D | — | — | — | 8 | 9 | 8 | 8 | Correcta |
+| 01 inicio | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Sin manchas; Clara guiña el ojo con la mano en la cadera |
+| 02 estudio | 7 | 8 | 8 | 7 | 8 | 7 | 7 | Arco de bombillas; la muñeca aún algo pequeña en vertical |
+| 03–05 frente/perfil/espalda | 7 | 8 | 8 | 8 | — | 7 | 7 | Ropa limpia en las tres vistas |
+| 06 cara | 8 | — | 8 | 8 | 8 | 8 | 8 | Cara en forma de corazón, ojos grandes, labios carnosos |
+| 07 manos | 7 | — | 8 | 7 | 8 | 7 | 7 | Se ven las uñas oscuras y el reloj; las manos son sencillas |
+| 08 pies | 7 | 8 | 8 | 7 | — | 7 | 7 | Correcta |
+| 09 Alba / Nayra / Vega | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Estilos bien diferenciados |
+| 10–12 pelo / maquillaje / uñas | 8 | 8 | 8 | 8 | 8 | 8 | 8 | Correctas |
+| 13 retos | — | — | 8 | 8 | 8 | 7 | 7 | Correcta |
+| 14 reto | 7 | 8 | 8 | 8 | 8 | 7 | 7 | Correcta |
+| 15 jurado | 8 | 8 | 8 | 8 | 8 | 8 | 8 | Correcta |
+| 16 disco | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
+| 16 centro comercial | 7 | 8 | 6 | 6 | 8 | 6 | 6 | El escaparate lila llena el fondo |
+| 16 playa | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
+| 16 alfombra roja | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
+| 16 habitación Y2K | 7 | 8 | 7 | 8 | 8 | 7 | 7 | Correcta |
+| 16 Ibiza | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
+| 16 nuestra casa | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Puerta azul, buganvillas y luces |
+| 17 pasarela | 7 | 8 | 8 | 8 | 8 | 8 | 7 | Correcta |
+| 18 armario | 7 | 8 | 8 | 7 | 8 | 7 | 7 | Mejor con el velo |
+| 19 tienda | 7 | 8 | 8 | 8 | 8 | 7 | 7 | Correcta |
+| 20 final pasarela | 8 | 8 | 8 | 8 | 7 | 8 | 7 | Vestido de hada y corona en Ibiza |
+| 21 carta | — | — | 8 | 8 | 9 | 8 | 8 | Correcta |
+
+### Conclusión honesta
+
+**No se cumple** el criterio de «ninguna captura por debajo de 8» con mi propia puntuación, que es estricta:
+
+- La interfaz, la iluminación, la ropa (sin clipping) y los escenarios llegan a 7–8.
+- El criterio que más baja la nota es la **calidad de los personajes (7)**. Las muñecas son 100 % procedurales, construidas con geometría generada por código y una cara pintada en textura. Tienen un estilo de muñeca coherente y bonito, pero no alcanzan el acabado de un personaje modelado y esculpido a mano por un artista.
+- El **centro comercial (6)** es el escenario más flojo.
+
+Subir de 7 a 8 de forma generalizada necesitaría modelos GLB/VRM hechos por un artista. El sistema está preparado para incorporarlos en `/assets`.
