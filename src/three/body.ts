@@ -9,7 +9,7 @@ export const J = {
   hips: new THREE.Vector3(0, 0.84, 0),
   neck: new THREE.Vector3(0, 1.305, -0.004),
   head: new THREE.Vector3(0, 1.4, 0.0),
-  headCenter: new THREE.Vector3(0, 1.5, 0.01),
+  headCenter: new THREE.Vector3(0, 1.49, 0.01),
   shoulderL: new THREE.Vector3(0.158, 1.246, -0.006),
   elbowL: new THREE.Vector3(0.168, 1.003, -0.012),
   wristL: new THREE.Vector3(0.174, 0.788, 0.0),
@@ -140,7 +140,7 @@ export function neckGeometry(): THREE.BufferGeometry {
     [0, 1.35, -0.002],
     [0, 1.43, 0.004],
   ])
-  return sweep(c, (t) => 0.046 - 0.006 * t + 0.002 * Math.sin(t * Math.PI), { radial: 28, segments: 10, ellipse: [1, 0.93] })
+  return sweep(c, (t) => 0.048 - 0.006 * t + 0.002 * Math.sin(t * Math.PI), { radial: 28, segments: 10, ellipse: [1, 0.93] })
 }
 
 // ───────────────────────── EXTREMIDADES ─────────────────────────

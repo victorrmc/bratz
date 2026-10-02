@@ -40,7 +40,7 @@ function setWorld(ctx: Ctx, w: number, h: number) {
 function eyePts(s: number, size: number) {
   const cx = s * 0.0475
   const cy = -0.002
-  const k = size * 1.22
+  const k = size * 1.3
   return {
     cx,
     cy,
@@ -264,7 +264,7 @@ function drawUpperLashLine(ctx: Ctx, e: ReturnType<typeof eyePts>, s: number, o:
     const p = closed ? closedLidPoint(e, s, t) : bez(e, s, t)
     const len = lenBase * (0.55 + 0.75 * t * t)
     const ang = (closed ? -Math.PI / 2 - s * (0.2 + 0.9 * t) : Math.PI / 2 - s * (0.25 + 1.0 * t * t)) as number
-    ctx.lineWidth = 0.00075 * (1 - 0.3 * t) + (makeup.lashes === 'drama' ? 0.0003 : 0)
+    ctx.lineWidth = 0.00095 * (1 - 0.3 * t) + (makeup.lashes === 'drama' ? 0.0003 : 0)
     ctx.beginPath()
     ctx.moveTo(p[0], p[1])
     const ex = p[0] + Math.cos(ang) * len
