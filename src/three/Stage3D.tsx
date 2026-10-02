@@ -62,17 +62,24 @@ function Doll({ quality, holder, rigRef, controlledPose }: { quality: Q; holder:
   }, [look.dollId, quality])
   useEffect(() => {
     rigRef.current = rig
+    interaction.rig = rig
     const h = holder.current
     h?.add(rig.root)
     return () => {
       rig.dispose()
       if (rigRef.current === rig) rigRef.current = null
+      if (interaction.rig === rig) interaction.rig = null
     }
   }, [rig, holder, rigRef])
   useEffect(() => {
     rig.setExpression(screen === 'home' ? 'guino' : expression)
     rig.setLook(look)
   }, [rig, look, expression, screen])
+  // reacción a la nota del jurado (saltito, aplauso, expresión)
+  const jury = useGame((s) => s.jury)
+  useEffect(() => {
+    if (screen === 'jury' && jury) rig.react(jury.score.stars)
+  }, [rig, screen, jury])
   useEffect(() => {
     if (controlledPose) return
     if (pose === 'walk') rig.setWalking(true)

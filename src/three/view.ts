@@ -13,6 +13,8 @@ export const interaction = {
   scene: null as unknown,
   gl: null as unknown,
   camera: null as unknown,
+  /** muñeca activa (para depuración y tests de animación) */
+  rig: null as unknown,
 }
 
 interface ViewState {
