@@ -174,6 +174,69 @@ Detalle completo, con criterios y problemas de cada captura, en [`docs/visual-re
 - **Textos de la carta provisionales:** el texto de la carta, la fecha («Próxima parada: Ibiza ✈ 2026») y la firma están en `src/data/story.ts` como borrador, a falta del texto definitivo.
 - **Audio:** los navegadores exigen un gesto del usuario antes de sonar, por eso la música empieza tras «Toca para empezar».
 
+## Tarea 3: animación y expresiones
+
+**Transiciones entre poses** (`src/three/pose.ts`, `transitionCurve` y `transitionPose`):
+
+- Cada cambio de pose dura unos 0,9 s y tiene una curva en tres fases: **anticipación** (retrocede un 8 % antes de arrancar), movimiento principal con un **sobrepaso** del 7 % y **asentamiento** con un rebote amortiguado.
+- **Acción superpuesta:** la cadera arranca primero y cuello, cabeza, codos y muñecas la siguen con retrasos de 50 a 130 ms.
+- Al coger impulso la cadera baja un poco, y el IK de pies lo convierte en una ligera flexión de rodillas.
+
+**Pasarela** (`src/three/scenes/Runway.tsx`):
+
+- **Pies plantados:** la muñeca ya no se desplaza a velocidad fija. El pie de apoyo queda fijo en el suelo y lo que se movería hacia atrás se convierte en avance (`DollRig.takeTravel`). El deslizamiento medido es de 0 mm por fotograma.
+- **Frenada** con pasos más cortos al llegar al final.
+- **Giro final de 360°** dando pasitos y apoyándose en el pie de apoyo (`pivotTo`). Después viene la pose, una media vuelta con pasitos, el regreso y otra media vuelta. Antes, el giro era instantáneo y los pies patinaban.
+
+**IK de pies** (`DollRig.solveFeet` y `legIK`):
+
+- En cada fotograma se mide la altura del talón y de la bola del pie (o de la suela del zapato, según `heelLift`) respecto al suelo.
+- Si el pie atraviesa el suelo (por un hundimiento de cadera, el paseo o un saltito), se sube el tobillo con IK de dos huesos (la rodilla se dobla hacia donde ya apuntaba) y se conserva la orientación del pie.
+
+**Expresiones** (`src/three/face.ts`): a sonrisa, guiño y seria se suman tres nuevas.
+
+- **Sonrisa con dientes:** comisuras altas, dientes superiores con separaciones y cejas algo levantadas.
+- **Sorpresa:** boca en «O», ojos un 7 % más grandes y cejas muy altas. Va acompañada de un respingo con la cabeza hacia atrás y los hombros arriba, que se relaja poco a poco.
+- **Risa:** ojos cerrados en arco, boca muy abierta con lengua y una carcajada animada (la boca alterna dos aperturas, la cabeza se echa atrás y los hombros botan).
+- **Al cambiar de expresión** hay un parpadeo rápido que disimula el cambio de textura. Las texturas se guardan en caché (hasta 10).
+- En el estudio y en fotos, el botón de expresión recorre las seis (`src/ui/expressions.ts`) y tiene iconos nuevos.
+
+**Reacciones al jurado** (`reactionFor`, `reactionPose` y `DollRig.react`):
+
+| Estrellas | Reacción |
+|---|---|
+| 5 | Risa, dos saltitos y aplauso |
+| 4 | Sonrisa con dientes, un saltito y aplauso |
+| 3 | Sonrisa y aplauso |
+| 1–2 | Sorpresa, encogiéndose de hombros con las palmas hacia fuera |
+
+- **El saltito** tiene agachada previa, parábola de 8,5 cm con los pies recogidos y amortiguación al caer.
+- **El aplauso** son unas tres palmadas por segundo, con las manos colocadas por IK delante del pecho.
+- **Al terminar**, la muñeca pasa con transición a la pose del jurado y recupera su expresión.
+
+**Pruebas:**
+
+- `tests/unit/animacion.test.ts`, 12 tests: la curva, las transiciones, las reacciones, el saltito, las bocas y una simulación del rig que comprueba que los pies no atraviesan el suelo, que no patinan y que avanza.
+- `tests/e2e/animacion.spec.ts`, 4 flujos por viewport: expresiones, transiciones, pasarela con giro y jurado.
+- Las métricas (`DollRig.stats`) se exponen en `window.__clara.interaction.rig`.
+
+**Capturas** en `docs/screenshots/animacion/`, con prefijo `antes-` y `despues-`. Se generan con `node scripts/anim-shots.mjs <prefijo>`.
+
+| Antes y después | |
+|---|---|
+| Caras: las tres de antes frente a dientes, risa y sorpresa | ![](docs/screenshots/animacion/comparativa-caras.png) |
+| Jurado: antes posaba sin más; ahora aplaude y salta | ![](docs/screenshots/animacion/comparativa-jurado.png) |
+| Pasarela | ![](docs/screenshots/animacion/comparativa-pasarela.png) |
+| Transición al saludo (fotogramas sucesivos) | ![](docs/screenshots/animacion/comparativa-transicion.png) |
+
+**Coste:** el bundle inicial no cambia (unos 139 kB gzip). El trozo 3D crece unos 3 kB gzip.
+
+**Limitaciones:**
+
+- El IK de pies solo empuja hacia arriba: no pega al suelo un pie que flota.
+- El pie de apoyo en el paseo se decide por la fase del ciclo.
+- Tras varios giros puede quedar una deriva lateral de pocos centímetros sobre la pasarela.
+
 ## Cómo añadir prendas nuevas
 
 1. Abre `src/data/items.ts` y añade una línea en la categoría correspondiente con el helper `it(...)`:
