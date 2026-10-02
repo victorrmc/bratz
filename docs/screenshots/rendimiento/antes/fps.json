@@ -1,0 +1,22 @@
+{
+  "estudio-auto": {
+    "fps": 31.3,
+    "quality": "baja",
+    "canvas": "136x203"
+  },
+  "estudio-media": {
+    "fps": 5.9,
+    "quality": "media",
+    "canvas": "234x351"
+  },
+  "estudio-baja": {
+    "fps": 19.7,
+    "quality": "baja",
+    "canvas": "156x234"
+  },
+  "portada": {
+    "fps": 5.9,
+    "quality": "media",
+    "canvas": "234x477"
+  }
+}
