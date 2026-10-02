@@ -6,3 +6,4 @@ playwright-report
 .lighthouse-tmp
 *.log
 .lighthouseci
+*.tsbuildinfo
