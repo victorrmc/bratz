@@ -107,10 +107,17 @@ test('microinteracción al ponerse una prenda', async ({ page, errors }) => {
   void errors
   await openStudio(page)
   const card = page.getByTestId('item-top-palabra')
+  // el efecto dura menos de un segundo: se registra con un observador antes de tocar
+  await card.evaluate((el) => {
+    const seen = ((window as unknown as { __fx: string[] }).__fx = [] as string[])
+    new MutationObserver(() => {
+      if (el.classList.contains('fx-on')) seen.push('clase')
+      if (el.querySelector('[data-testid="equip-burst"] .spark')) seen.push('destellos')
+    }).observe(el, { attributes: true, childList: true, subtree: true })
+  })
   await card.click()
-  await expect(card.getByTestId('equip-burst')).toBeAttached()
+  await expect.poll(() => page.evaluate(() => [...new Set((window as unknown as { __fx: string[] }).__fx)].sort())).toEqual(['clase', 'destellos'])
   await expect(card.locator('.worn-tick')).toBeVisible()
-  await expect(card).toHaveClass(/fx-on/)
   // la tarjeta tocada no salta aunque aparezca el editor encima
   await expect(card).toBeInViewport()
   // y la animación se limpia sola

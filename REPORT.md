@@ -213,3 +213,98 @@ src/audio   música y efectos con Web Audio
 tests/      unitarios (Vitest) y E2E (Playwright)
 scripts/    capturas, medición de FPS y utilidades de revisión
 ```
+
+## Tarea 8: miniaturas reales e interfaz pulida
+
+### Miniaturas renderizadas de cada prenda
+
+- Las tarjetas del vestidor y de la tienda ya no usan el icono SVG genérico: muestran **la propia pieza 3D**, construida con el mismo código que viste a la muñeca (`buildTop`, `buildShoes`, `buildBag`…), con su tejido, su estampado y sus colores.
+- **Fuera de pantalla** (`src/three/thumbs.ts`): un `WebGLRenderer` pequeño (168×168, fondo transparente, ACES, entorno `RoomEnvironment` y luz de tres puntos) con cámara ortográfica ajustada a la caja de la pieza. El encuadre se adapta a cada tipo:
+  - El calzado se ve de perfil y en tres cuartos.
+  - Los bolsos, desde el lado de la mano. Se encuadra el cuerpo del bolso y solo el arranque del asa.
+  - Las mochilas, las alas y las capas, por detrás.
+  - De los pendientes y las pulseras, solo uno.
+- **Cola y caché** (`src/ui/thumbs.ts`):
+  - Se generan de una en una con `requestIdleCallback`, primero las tarjetas visibles y después, en segundo plano, el resto del catálogo, a los 1,5 s de entrar al estudio.
+  - Se guardan en memoria y en una **IndexedDB propia** (`clara-miniaturas`), así que no tocan el guardado de la partida ni `SAVE_VERSION`. La clave incluye una versión de miniatura (`THUMB_VERSION`) y las entradas viejas se borran solas.
+  - Cuando una prenda puesta se recolorea o cambia de estampado, su miniatura se regenera con los colores nuevos.
+  - El contexto WebGL de las miniaturas se libera a los 8 s de quedarse sin trabajo.
+- Mientras una miniatura se genera, o si falla, se sigue mostrando la ilustración vectorial, así que nunca hay una tarjeta vacía.
+- Un foco rosa suave detrás de la pieza evita que lo blanco y lo plateado se pierdan sobre la tarjeta.
+
+### Transiciones sin interfaz fantasma
+
+- **El problema de la ronda 1:** con `AnimatePresence`, la pantalla nueva esperaba a que acabase la animación de salida. Esa animación, hecha con `requestAnimationFrame`, se quedaba a medias bajo carga y la UI quedaba semitransparente o sin montar. Por eso se había quitado.
+- **La solución** (`src/ui/transitions.ts`):
+  - React cambia de pantalla **al instante**: ni el estado ni la interfaz real esperan a ninguna animación.
+  - Un suscriptor de zustand, que se ejecuta antes de que React repinte, copia el DOM de la pantalla saliente. Lo que se ve salir es esa copia: estática, sin `id` ni `data-testid`, `inert`, `aria-hidden` y sin eventos de puntero.
+  - Entrada y salida son **animaciones CSS por tiempo**, deslizando hacia un lado u otro según se avance o se vuelva. La copia se borra al acabar su animación y, pase lo que pase, con un temporizador. Si llega otro cambio, la copia anterior se sustituye.
+  - Con `prefers-reduced-motion` no hay copia ni deslizamiento.
+
+### Microinteracciones al equiparse
+
+- Al ponerse una prenda:
+  - La miniatura salta con rebote.
+  - La tarjeta brilla y sale un anillo con ocho destellos.
+  - Aparece una marca ✓ de «puesta».
+  - Vibra y suena el destello. El estallido de purpurina 3D sobre la muñeca ya existía.
+- Al quitarla, la miniatura se encoge. Una prenda bloqueada hace un pequeño «no» con la cabeza.
+- Las categorías con algo puesto llevan un punto fucsia.
+- Al aparecer el editor de color encima de la lista, se compensa el desplazamiento para que la tarjeta tocada no salte fuera de la vista.
+
+### Búsqueda y filtros en el vestidor
+
+- **Lupa:** busca en **todo el vestidor**, sin distinguir tildes ni mayúsculas. Mira el nombre de la prenda, la categoría, el estilo y el color («vaquero», «ibiza», «rosa», «gafas»…).
+- **Botón de filtros:** filtra por **estilo** (13 etiquetas) y por **color** (12 familias calculadas a partir del color de la prenda; el dorado se reconoce solo en metales, gemas y lentejuelas).
+  - Dentro de cada grupo se combina con «o» y entre grupos con «y».
+  - Solo se ofrecen los estilos y colores que existen en la categoría.
+  - El botón muestra cuántos filtros hay activos.
+- Se muestra el número de resultados con «Quitar filtros», y un mensaje amable cuando no hay ninguno.
+- La lógica es pura y está probada en `src/game/filters.ts`. Los filtros no se guardan, porque son una ayuda momentánea.
+
+### Pruebas
+
+- **Unitarias** (`tests/unit/t8-filtros.test.ts`): 10 tests sobre familias de color, búsqueda sin tildes, combinación de filtros y facetas disponibles.
+- **E2E** (`tests/e2e/t8-miniaturas.spec.ts`, 4 flujos en las tres resoluciones):
+  1. Las miniaturas son imágenes reales, cuadradas y no vacías. Todas las tarjetas visibles acaban con miniatura, recolorear una prenda la regenera y la caché de IndexedDB sobrevive a recargar.
+  2. Búsqueda en todo el vestidor, equiparse desde los resultados, búsqueda sin resultados, filtros de estilo y color, y quitar filtros.
+  3. Microinteracción al equiparse: aparece y se limpia sola, la tarjeta sigue a la vista, el punto de categoría y quitarse la prenda.
+  4. Transiciones: la copia saliente es inerte y sin testids y desaparece sola. Muchos cambios seguidos no dejan copias ni pantallas duplicadas, y la pantalla final queda opaca y usable.
+- **Resultados:**
+
+| Prueba | Resultado |
+|---|---|
+| `npm test` | **45/45** en verde (35 anteriores y 10 nuevos). Cobertura de `src/game`: 98,9 % de sentencias |
+| `npm run e2e` | **36/36** en verde: 24 anteriores y 12 nuevos (4 flujos × 3 resoluciones), 0 errores de consola |
+| `npm run build` | Correcto. **Carga inicial: unos 140 kB gzip** (135,7 de JS y 4,3 de CSS). El renderizador de miniaturas (1,6 kB) y la caché van en trozos diferidos |
+
+- **Capturas:** `node scripts/shots-t8.mjs <prefijo>`, con `npx vite preview --port 4173` en marcha.
+
+### Antes y después
+
+Capturas en `docs/screenshots/t8-miniaturas/` (390×844, DPR 2, calidad media, render por software):
+
+| | Antes | Después |
+|---|---|---|
+| Tops | ![](docs/screenshots/t8-miniaturas/antes-01-vestidor-tops.png) | ![](docs/screenshots/t8-miniaturas/despues-01-vestidor-tops.png) |
+| Calzado | ![](docs/screenshots/t8-miniaturas/antes-03-calzado.png) | ![](docs/screenshots/t8-miniaturas/despues-03-calzado.png) |
+| Bolsos | ![](docs/screenshots/t8-miniaturas/antes-04-bolsos.png) | ![](docs/screenshots/t8-miniaturas/despues-04-bolsos.png) |
+| Joyas | ![](docs/screenshots/t8-miniaturas/antes-05-joyas.png) | ![](docs/screenshots/t8-miniaturas/despues-05-joyas.png) |
+| Gorros | ![](docs/screenshots/t8-miniaturas/antes-06-gorros.png) | ![](docs/screenshots/t8-miniaturas/despues-06-gorros.png) |
+| Al equiparse | ![](docs/screenshots/t8-miniaturas/antes-07-equipar.png) | ![](docs/screenshots/t8-miniaturas/despues-07-equipar.png) |
+| Transición (congelada a mitad) | ![](docs/screenshots/t8-miniaturas/antes-10-transicion.png) | ![](docs/screenshots/t8-miniaturas/despues-10-transicion.png) |
+| Tienda | ![](docs/screenshots/t8-miniaturas/antes-12-tienda.png) | ![](docs/screenshots/t8-miniaturas/despues-12-tienda.png) |
+
+Solo hay «después» de lo nuevo:
+
+- Búsqueda: `despues-08-buscar.png`.
+- Panel de filtros: `despues-09-filtros.png`.
+- Resultado filtrado: `despues-09b-filtrado.png`.
+
+En la captura de transición, la copia saliente (el estudio) se ve a medio desvanecer sobre la portada que entra.
+
+### Limitaciones
+
+- Las miniaturas se generan con el nivel de detalle geométrico de la calidad actual. En calidad baja salen algo más facetadas.
+- La primera visita al estudio genera unas 140 miniaturas en segundo plano, cada una en un rato libre del navegador. Con render por software tardan alrededor de un minuto. En un móvil con GPU son mucho más rápidas, y en las visitas siguientes salen de la caché.
+- Las prendas muy claras (perlas, blanco sobre blanco) siguen teniendo poco contraste, aunque el foco de fondo ayuda.
