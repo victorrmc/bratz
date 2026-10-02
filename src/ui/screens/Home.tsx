@@ -6,6 +6,7 @@ import { STORY } from '../../data/story'
 import { Btn, AudioToggle, CoinCounter, Modal, useInsetReporter, useInsetTop } from '../kit'
 import { Icon, type IconName } from '../Icon'
 import { audio, buzz } from '../../audio/engine'
+import { SettingsButton } from '../Settings'
 
 const MENU: { screen: Screen; label: string; icon: IconName; testid: string }[] = [
   { screen: 'studio', label: 'Estudio', icon: 'hanger', testid: 'menu-studio' },
@@ -37,6 +38,7 @@ export default function HomeScreen() {
       <div className="topbar">
         <div className="spacer" />
         <CoinCounter />
+        <SettingsButton />
         <AudioToggle />
       </div>
       <motion.header
