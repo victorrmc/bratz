@@ -1,5 +1,7 @@
 name: Desplegar en GitHub Pages
 
+# Requisitos (una sola vez): repositorio público (o plan de pago) y
+# Settings → Pages → Build and deployment → Source: «GitHub Actions».
 on:
   push:
     branches: [main]
@@ -12,11 +14,12 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,6 +31,8 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Carga inicial por debajo de 1,5 MB gzip
+        run: npm run size
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
