@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import { r3fCatalogue } from './scripts/r3f-catalogue.mjs'
 
 // App instalable: registra el service worker y le pasa la lista de archivos a guardar para jugar sin conexión.
 function pwa(): Plugin {
@@ -49,7 +50,7 @@ function pwa(): Plugin {
 // GitHub Pages sirve el proyecto en /<repo>/
 export default defineConfig(({ command, isPreview }) => ({
   base: command === 'build' || isPreview ? (process.env.BASE_PATH ?? '/bratz/') : '/',
-  plugins: [react(), pwa()],
+  plugins: [react(), pwa(), r3fCatalogue()],
   build: {
     target: 'es2020',
     chunkSizeWarningLimit: 1200,
