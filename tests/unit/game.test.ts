@@ -61,7 +61,7 @@ describe('catálogo', () => {
     expect(HAIR_STYLES.length).toBeGreaterThanOrEqual(14)
     expect(CHALLENGES.length).toBe(15)
     expect(DOLLS.length).toBe(4)
-    expect(STAGES.filter((s) => !s.secret).length).toBe(6)
+    expect(STAGES.filter((s) => !s.secret).length).toBe(7)
     expect(POSES.length).toBe(8)
   })
   it('las especiales tienen precio y las secretas regla', () => {
