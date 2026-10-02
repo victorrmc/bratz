@@ -233,7 +233,7 @@ export class DollRig {
     this.headMesh.castShadow = true
     this.attach.head.add(this.headMesh)
     this.eyes = buildEyes(doll, { lipFullness: doll.face.lipFullness }, this.headMat, this.skin)
-    for (const g of Object.values(this.eyes.sides)) this.attach.head.add(g)
+    this.attach.head.add(this.eyes.group)
 
     // Manos: palma + dedos fusionados en una malla (y otra para las uñas)
     for (const side of ['L', 'R'] as const) {
@@ -243,6 +243,7 @@ export class DollRig {
       this.attach[`wrist${side}`].add(hand)
       const geo = handGeometry(side, 0.15, 'almendra')
       const skinM = new THREE.Mesh(geo.skin, this.skin)
+      skinM.name = `mano-${side}`
       const nailM = new THREE.Mesh(geo.nails, nailMaterial({ shape: 'almendra', color: '#3a0f1f', finish: 'brillo' }))
       hand.add(skinM, nailM)
       this.hands[side] = { skin: skinM, nails: nailM, curl: 0.15 }
@@ -397,8 +398,7 @@ export class DollRig {
     this.headMat.metalnessMap = f.rm
     this.headMat.alphaMap = f.alpha
     if (first) this.headMat.needsUpdate = true
-    const open = openEyes({ closed, expression: this.expression })
-    for (const [s, g] of Object.entries(this.eyes.sides)) g.visible = open.includes(Number(s))
+    this.eyes.setOpen(openEyes({ closed, expression: this.expression }))
   }
 
   setPose(id: string) {

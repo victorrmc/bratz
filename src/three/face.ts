@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { DollDef, Expression, MakeupLook } from '../data/types'
 import { FACE, J, headSurfaceZ, type FaceShape } from './body'
 import { mixHex } from '../game/color'
-import { surface, sweep } from './geo'
+import { merge, surface, sweep } from './geo'
 
 // Cara pintada (estilo muñeca) en vista frontal, en coordenadas de mundo
 // relativas al centro de la cabeza (y hacia arriba). El maquillaje son capas.
@@ -921,19 +921,35 @@ function almondQ(e: ReturnType<typeof eyePts>, x: number, y: number) {
   return ((x - cx) / a) ** 2 + ((y - cy) / b) ** 2
 }
 
-/** Textura del globo ocular: esclerótica, iris con fibras, pupila, sombra del párpado y brillos. */
-function eyeCanvas(doll: DollDef, s: number, res = 256): HTMLCanvasElement {
-  const e = eyePts(s, doll.face.eyeSize)
-  const R = eyeRect(e, s)
+/** Rectángulo que cubre los dos ojos (coordenadas de cara). */
+function eyesRect(size: number) {
+  const r1 = eyeRect(eyePts(1, size), 1)
+  return { x0: -r1.x1, x1: r1.x1, y0: r1.y0, y1: r1.y1 }
+}
+
+/** Textura de los dos globos oculares: esclerótica, iris con fibras, pupila, sombra del párpado y brillos. */
+function eyesCanvas(doll: DollDef, res = 512): HTMLCanvasElement {
+  const U = eyesRect(doll.face.eyeSize)
   const w = res
-  const h = Math.round(res * ((R.y1 - R.y0) / (R.x1 - R.x0)))
+  const h = Math.round(res * ((U.y1 - U.y0) / (U.x1 - U.x0)))
   const cv = makeCanvas(w, h)
   const ctx = cv.getContext('2d')!
-  const k = w / (R.x1 - R.x0)
-  ctx.setTransform(k, 0, 0, -k, -R.x0 * k, R.y1 * k)
-  // esclerótica: blanco cálido, más oscuro hacia las comisuras
+  const k = w / (U.x1 - U.x0)
+  ctx.setTransform(k, 0, 0, -k, -U.x0 * k, U.y1 * k)
   ctx.fillStyle = '#f4eef2'
-  ctx.fillRect(R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0)
+  ctx.fillRect(U.x0, U.y0, U.x1 - U.x0, U.y1 - U.y0)
+  for (const s of [1, -1]) drawEyeball(ctx, doll, s)
+  return cv
+}
+
+function drawEyeball(ctx: Ctx, doll: DollDef, s: number) {
+  const e = eyePts(s, doll.face.eyeSize)
+  const R = eyeRect(e, s)
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0)
+  ctx.clip()
+  // esclerótica: blanco cálido, más oscuro hacia las comisuras
   const sc = ctx.createRadialGradient(e.cx, e.cy, 0.004, e.cx, e.cy, 0.034 * e.k)
   sc.addColorStop(0, 'rgba(255,255,255,0.9)')
   sc.addColorStop(0.55, 'rgba(250,244,248,0.4)')
@@ -1023,12 +1039,13 @@ function eyeCanvas(doll: DollDef, s: number, res = 256): HTMLCanvasElement {
   ctx.beginPath()
   ctx.arc(icx + 0.0043 * e.k, icy - 0.0043 * e.k, 0.0011 * e.k, 0, Math.PI * 2)
   ctx.fill()
-  return cv
+  ctx.restore()
 }
 
 export interface EyeSet {
-  /** grupos por lado: [s = +1, s = −1] */
-  sides: Record<string, THREE.Group>
+  group: THREE.Group
+  /** Muestra solo los ojos abiertos (s = +1 izquierdo, −1 derecho). */
+  setOpen: (sides: number[]) => void
   dispose: () => void
 }
 
@@ -1065,6 +1082,10 @@ function eyeGeometries(size: number, s: number, shape: FaceShape) {
     },
     { uvMode: 'param', fixed: true, flip: true },
   )
+  const U = eyesRect(size)
+  const buv = ball.getAttribute('uv') as THREE.BufferAttribute
+  const bpos = ball.getAttribute('position') as THREE.BufferAttribute
+  for (let i = 0; i < buv.count; i++) buv.setXY(i, (bpos.getX(i) - hc.x - U.x0) / (U.x1 - U.x0), (bpos.getY(i) - hc.y - U.y0) / (U.y1 - U.y0))
   // córnea: casquete transparente sobre el iris
   const rc = ir * 1.22
   const cornea = surface(
@@ -1163,25 +1184,50 @@ const lashMat = new THREE.MeshPhysicalMaterial({ color: '#1a0e14', roughness: 0.
  * es el material de la cabeza: el pliegue reutiliza la cara pintada.
  */
 export function buildEyes(doll: DollDef, shape: FaceShape, lidMat: THREE.Material, skinMat: THREE.Material): EyeSet {
-  const sides: Record<string, THREE.Group> = {}
-  const disposables: { dispose: () => void }[] = []
-  for (const s of [1, -1]) {
-    const g = eyeGeometries(doll.face.eyeSize, s, shape)
-    const tex = new THREE.CanvasTexture(eyeCanvas(doll, s))
-    tex.colorSpace = THREE.SRGBColorSpace
-    tex.anisotropy = 4
-    const ballMat = new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.06 })
-    disposables.push(tex, ballMat)
-    const grp = new THREE.Group()
-    grp.name = `ojo-${s > 0 ? 'izq' : 'der'}`
-    const ball = new THREE.Mesh(g.ball, ballMat)
-    const cornea = new THREE.Mesh(g.cornea, corneaMat)
-    cornea.renderOrder = 2
-    const lash = new THREE.Mesh(g.lash, lashMat)
-    const lower = new THREE.Mesh(g.lower, skinMat)
-    const lid = new THREE.Mesh(g.lid, lidMat)
-    grp.add(ball, cornea, lash, lower, lid)
-    sides[String(s)] = grp
+  const tex = new THREE.CanvasTexture(eyesCanvas(doll))
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.anisotropy = 4
+  const ballMat = new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.06 })
+  type Part = 'ball' | 'cornea' | 'lash' | 'lower' | 'lid'
+  const mats: Record<Part, THREE.Material> = { ball: ballMat, cornea: corneaMat, lash: lashMat, lower: skinMat, lid: lidMat }
+  // una malla por material con los dos ojos fusionados (menos llamadas de dibujo);
+  // el guiño usa la variante con un solo ojo
+  const variants = new Map<string, Record<Part, THREE.BufferGeometry>>()
+  const variant = (sides: number[]) => {
+    const key = sides.join(',')
+    let v = variants.get(key)
+    if (!v) {
+      const per = sides.map((s) => eyeGeometries(doll.face.eyeSize, s, shape))
+      const one = (k: Part) => (per.length === 1 ? per[0][k] : merge(per.map((g) => g[k])))
+      v = { ball: one('ball'), cornea: one('cornea'), lash: one('lash'), lower: one('lower'), lid: one('lid') }
+      variants.set(key, v)
+    }
+    return v
   }
-  return { sides, dispose: () => disposables.forEach((d) => d.dispose()) }
+  const group = new THREE.Group()
+  group.name = 'ojos'
+  const both = variant([1, -1])
+  const meshes = {} as Record<Part, THREE.Mesh>
+  for (const k of Object.keys(mats) as Part[]) {
+    meshes[k] = new THREE.Mesh(both[k], mats[k])
+    group.add(meshes[k])
+  }
+  meshes.cornea.renderOrder = 2
+  let current = '1,-1'
+  return {
+    group,
+    setOpen(sides) {
+      group.visible = sides.length > 0
+      const key = sides.join(',')
+      if (!sides.length || key === current) return
+      current = key
+      const v = variant(sides)
+      for (const k of Object.keys(meshes) as Part[]) meshes[k].geometry = v[k]
+    },
+    dispose() {
+      tex.dispose()
+      ballMat.dispose()
+      for (const [k, v] of variants) if (k.includes(',')) for (const g of Object.values(v)) g.dispose()
+    },
+  }
 }
