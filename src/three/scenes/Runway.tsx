@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { GlamEnvironment, ThreePointLights } from '../env'
 import { FloatingGlints } from '../effects'
@@ -20,7 +20,6 @@ export interface RunwayProps {
 
 const START_Z = -4.6
 const END_Z = 0.9
-const SPEED = 0.62
 
 function Audience({ special }: { special: boolean }) {
   const ref = useRef<THREE.InstancedMesh>(null)
@@ -100,10 +99,16 @@ function Petals() {
   return <instancedMesh ref={ref} args={[geo, mat, N]} frustumCulled={false} />
 }
 
+type Phase = 'walk' | 'spin' | 'pose' | 'turn' | 'back' | 'turnFront'
+
+const SPIN_TIME = 1.7
+const TURN_TIME = 1.1
+const easeInOut = (x: number) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2)
+
 export default function RunwayScene({ quality, holder, rig, special = false, onFinish, onPose }: RunwayProps) {
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
-  const state = useRef({ t: 0, phase: 'walk' as 'walk' | 'pose' | 'back', posed: false, finished: false })
+  const state = useRef({ t: 0, phase: 'walk' as Phase, finished: false, rot0: 0 })
   const strip = useMemo(() => {
     const pts: [number, number, number][] = []
     for (let i = 0; i <= 24; i++) pts.push([0.62, 0.105, START_Z - 0.6 + i * 0.32], [-0.62, 0.105, START_Z - 0.6 + i * 0.32])
@@ -117,6 +122,18 @@ export default function RunwayScene({ quality, holder, rig, special = false, onF
   }, [special])
   const look = useMemo(() => new THREE.Vector3(), [])
   const camPos = useMemo(() => new THREE.Vector3(), [])
+  const tmp = useMemo(() => ({ v: new THREE.Vector3(), p: new THREE.Vector3(), w0: new THREE.Vector3(), w1: new THREE.Vector3() }), [])
+
+  useEffect(() => {
+    const r0 = rig
+    return () => {
+      const r = r0.current
+      if (!r) return
+      r.takeTravel()
+      r.locomotion = false
+      r.walkStride = 1
+    }
+  }, [rig])
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.05)
@@ -125,15 +142,50 @@ export default function RunwayScene({ quality, holder, rig, special = false, onF
     const r = rig.current
     if (!h || !r) return
     st.t += dt
-    const walkDur = (END_Z - START_Z) / SPEED
+    r.locomotion = true
+
+    // El avance sale de los pies de apoyo (pies plantados): se pasa al soporte.
+    const tv = r.takeTravel(tmp.v)
+    const cs = Math.cos(h.rotation.y)
+    const sn = Math.sin(h.rotation.y)
+    h.position.x += tv.x * cs + tv.z * sn
+    h.position.z += -tv.x * sn + tv.z * cs
+
+    /** Gira el soporte sobre el pie de apoyo para que no patine. */
+    const pivotTo = (angle: number) => {
+      const d = angle - h.rotation.y
+      const sp = r.stancePoint(tmp.p)
+      if (!sp) {
+        h.rotation.y = angle
+        return
+      }
+      h.updateMatrixWorld()
+      h.localToWorld(tmp.w0.copy(sp))
+      h.rotation.y += d
+      h.updateMatrixWorld()
+      h.localToWorld(tmp.w1.copy(sp))
+      h.position.x += tmp.w0.x - tmp.w1.x
+      h.position.z += tmp.w0.z - tmp.w1.z
+    }
+    const go = (phase: Phase) => {
+      st.phase = phase
+      st.t = 0
+      st.rot0 = h.rotation.y
+    }
+
     if (st.phase === 'walk') {
+      // frena con pasos más cortos al llegar al final
+      r.walkStride = THREE.MathUtils.clamp((END_Z - h.position.z) / 0.7, 0.3, 1)
       r.setWalking(true)
-      h.position.z = START_Z + st.t * SPEED
-      h.rotation.y = 0
-      if (h.position.z >= END_Z) {
-        h.position.z = END_Z
-        st.phase = 'pose'
-        st.t = 0
+      if (h.position.z >= END_Z - 0.04) go('spin')
+    } else if (st.phase === 'spin') {
+      // giro final de 360° con pasitos en el sitio
+      r.walkStride = 0.14
+      r.setWalking(true)
+      pivotTo(st.rot0 + Math.PI * 2 * easeInOut(Math.min(1, st.t / SPIN_TIME)))
+      if (st.t >= SPIN_TIME) {
+        h.rotation.y = 0
+        go('pose')
         r.setPose(special ? 'kiss' : 'hip')
         onPose?.()
       }
@@ -144,26 +196,27 @@ export default function RunwayScene({ quality, holder, rig, special = false, onF
             st.finished = true
             onFinish?.()
           }
-        } else {
-          st.phase = 'back'
-          st.t = 0
-        }
+        } else go('turn')
+      }
+    } else if (st.phase === 'turn' || st.phase === 'turnFront') {
+      // media vuelta dando pasitos, apoyada en un pie
+      r.walkStride = 0.14
+      r.setWalking(true)
+      pivotTo(st.rot0 + Math.PI * easeInOut(Math.min(1, st.t / TURN_TIME)))
+      if (st.t >= TURN_TIME) {
+        const front = st.phase === 'turnFront'
+        h.rotation.y = front ? 0 : Math.PI
+        go(front ? 'walk' : 'back')
       }
     } else {
-      // vuelta y regreso
-      h.rotation.y = Math.min(Math.PI, st.t * 4)
-      if (st.t > 0.6) {
-        r.setWalking(true)
-        h.position.z = END_Z - (st.t - 0.6) * SPEED
-      }
-      if (h.position.z < START_Z) {
-        st.phase = 'walk'
-        st.t = 0
-      }
+      r.walkStride = THREE.MathUtils.clamp((h.position.z - START_Z) / 0.7, 0.3, 1)
+      r.setWalking(true)
+      if (h.position.z <= START_Z + 0.04) go('turnFront')
     }
+
     // Cámara cinematográfica
     const z = h.position.z
-    const progress = st.phase === 'walk' ? Math.min(1, st.t / walkDur) : 1
+    const progress = THREE.MathUtils.clamp((z - START_Z) / (END_Z - START_Z), 0, 1)
     if (st.phase === 'walk' && progress < 0.4) {
       // plano lateral amplio que acompaña
       camPos.set(3.4 - progress * 4, 1.45, z + 3.0)
@@ -172,14 +225,17 @@ export default function RunwayScene({ quality, holder, rig, special = false, onF
       // plano frontal bajo, en retroceso
       camPos.set(0.45, 1.0, z + 4.2 - (progress - 0.4) * 1.2)
       look.set(0, 1.05, z)
+    } else if (st.phase === 'spin') {
+      camPos.set(0.4, 1.2, z + 3.6)
+      look.set(h.position.x, 1.1, z)
     } else if (st.phase === 'pose') {
       // primer plano de la pose
       const k = Math.min(1, st.t / 1.5)
-      camPos.set(0.3 - k * 0.2, 1.3, END_Z + 3.6 - k * 1.4)
-      look.set(0, 1.25, END_Z)
+      camPos.set(0.3 - k * 0.2, 1.3, z + 3.6 - k * 1.4)
+      look.set(h.position.x, 1.25, z)
     } else {
       camPos.set(-2.4, 1.5, z + 3.4)
-      look.set(0, 1.0, z)
+      look.set(h.position.x, 1.0, z)
     }
     // en vertical hace falta más distancia para que quepa la figura entera
     const fit = Math.max(1, 0.75 / (size.width / size.height))

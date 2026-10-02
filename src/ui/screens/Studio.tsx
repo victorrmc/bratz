@@ -13,6 +13,7 @@ import { tagLabel } from '../../game/scoring'
 import { Btn, IconBtn, Modal, TopBar, useInsetReporter, useInsetTop } from '../kit'
 import { Icon, type IconName } from '../Icon'
 import { ItemGlyph } from '../ItemGlyph'
+import { expressionInfo, nextExpression } from '../expressions'
 import { useView, interaction } from '../../three/view'
 import { audio, buzz } from '../../audio/engine'
 import Onboarding from './Onboarding'
@@ -414,9 +415,9 @@ export default function StudioScreen({ mode }: { mode: 'studio' | 'challenge' })
           <IconBtn key={c.id} icon={c.icon} label={c.label} active={cam === c.id} onClick={() => setCam(c.id)} data-testid={`cam-${c.id}`} />
         ))}
         <IconBtn
-          icon={expression === 'sonrisa' ? 'smile' : expression === 'guino' ? 'wink' : 'pout'}
-          label="Cambiar expresión"
-          onClick={() => setExpression(expression === 'sonrisa' ? 'guino' : expression === 'guino' ? 'seria' : 'sonrisa')}
+          icon={expressionInfo(expression).icon}
+          label={`Cambiar expresión (ahora: ${expressionInfo(expression).label})`}
+          onClick={() => setExpression(nextExpression(expression))}
           data-testid="expression"
         />
         <IconBtn

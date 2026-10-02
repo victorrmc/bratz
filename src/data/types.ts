@@ -165,7 +165,7 @@ export type LipFinish = 'mate' | 'gloss' | 'metal'
 export type EyelinerStyle = 'none' | 'fino' | 'gato' | 'grafico'
 export type LashStyle = 'natural' | 'volumen' | 'drama'
 export type FaceGem = 'none' | 'estrellas' | 'corazones' | 'brillantes' | 'pecas' | 'mariposa'
-export type Expression = 'sonrisa' | 'guino' | 'seria'
+export type Expression = 'sonrisa' | 'guino' | 'seria' | 'dientes' | 'sorpresa' | 'risa'
 
 export interface MakeupLook {
   eyeshadow: string
