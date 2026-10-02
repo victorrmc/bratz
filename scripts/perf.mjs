@@ -5,19 +5,20 @@ import fs from 'node:fs'
 
 const base = process.argv[2] ?? 'http://localhost:4173/bratz/'
 const results = []
-for (const screen of ['studio', 'runway']) {
+for (const screen of (process.env.SCREENS ?? 'studio,runway').split(',')) {
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
   const p = await b.newPage({ viewport: { width: 390, height: 844 } })
   await p.goto(base)
   await p.getByTestId('start').click()
   await p.waitForSelector('[data-screen="home"]', { timeout: 120000 })
   const cdp = await p.context().newCDPSession(p)
-  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: +(process.env.RATE ?? 4) })
   await p.evaluate((s) => {
     const st = window.__clara.store.getState()
     st.finishOnboarding()
     st.go(s)
   }, screen)
+  if (process.env.CSS) await p.addStyleTag({ content: process.env.CSS })
   // margen para que el DPR adaptativo se estabilice
   await p.waitForTimeout(30000)
   const r = await p.evaluate(

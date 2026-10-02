@@ -230,21 +230,23 @@ export default function PhotoScreen() {
       const dpr = window.devicePixelRatio || 1
       const W = 1080
       const H = 1440
-      const shot = interaction.capture?.({ w: Math.round(vw.w * dpr), h: Math.round(vw.h * dpr), type: 'image/png', post: true })
+      const box = document.querySelector('.stage3d canvas')!.getBoundingClientRect()
+      const shot = interaction.capture?.({ w: Math.round(box.width * dpr), h: Math.round(box.height * dpr), type: 'image/png', post: true })
       if (!shot) {
         toast('No se pudo hacer la foto')
         return
       }
+      const cr = document.querySelector('.stage3d canvas')!.getBoundingClientRect()
       const img = new Image()
       img.onload = () => {
         const cv = document.createElement('canvas')
         cv.width = W
         cv.height = H
         const ctx = cv.getContext('2d')!
-        const sx = (rect.x / vw.w) * img.width
-        const sy = (rect.y / vw.h) * img.height
-        const sw = (rect.w / vw.w) * img.width
-        const sh = (rect.h / vw.h) * img.height
+        const sx = ((rect.x - cr.left) / cr.width) * img.width
+        const sy = ((rect.y - cr.top) / cr.height) * img.height
+        const sw = (rect.w / cr.width) * img.width
+        const sh = (rect.h / cr.height) * img.height
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H)
         for (const p of stickers) drawSticker(ctx, p, W, H)
         drawFrame(ctx, frame, W, H, stageDef.name)

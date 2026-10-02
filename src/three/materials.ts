@@ -200,12 +200,12 @@ export function skinMaterial(color: string): THREE.MeshPhysicalMaterial {
   if (hit) return hit
   const m = new THREE.MeshPhysicalMaterial({
     color,
-    roughness: 0.52,
-    clearcoat: quality === 'baja' ? 0 : 0.12,
-    clearcoatRoughness: 0.45,
-    sheen: quality === 'baja' ? 0 : 0.35,
-    sheenRoughness: 0.5,
-    sheenColor: new THREE.Color('#ffd9d2'),
+    roughness: 0.48,
+    clearcoat: quality === 'baja' ? 0 : 0.22,
+    clearcoatRoughness: 0.38,
+    sheen: quality === 'baja' ? 0 : 0.6,
+    sheenRoughness: 0.45,
+    sheenColor: new THREE.Color('#ffb8b0'),
   })
   cache.set(key, m)
   return m

@@ -22,6 +22,8 @@ const StageScene = lazy(() => import('./scenes/Stages'))
 const RunwayScene = lazy(() => import('./scenes/Runway'))
 
 type Q = 'baja' | 'media' | 'alta'
+/** El lienzo se mete un poco bajo el borde redondeado del panel inferior. */
+const CANVAS_OVERLAP = 24
 
 let composerRef: EffectComposerImpl | null = null
 
@@ -55,7 +57,7 @@ function Doll({ quality, holder, rigRef, controlledPose }: { quality: Q; holder:
   const screen = useGame((s) => s.screen)
   const rig = useMemo(() => {
     setMaterialQuality(quality)
-    setDetail(quality === 'alta' ? 1 : quality === 'media' ? 0.75 : 0.45)
+    setDetail(quality === 'alta' ? 1 : quality === 'media' ? 0.75 : 0.3)
     return new DollRig(DOLL_BY_ID[look.dollId] ?? DOLL_BY_ID[PROTAGONIST_ID])
   }, [look.dollId, quality])
   useEffect(() => {
@@ -95,8 +97,9 @@ const PRESETS: Record<string, { target: [number, number, number]; height: number
 
 function CameraRig({ preset, orbit = false, interactive = true }: { preset: string; orbit?: boolean; interactive?: boolean }) {
   const { camera, gl, size } = useThree()
-  const insetBottom = useView((s) => s.camBottom ?? s.insetBottom)
-  const insetRight = useView((s) => s.insetRight)
+  // el lienzo ya excluye los paneles inferior/derecho: solo queda lo que sobre dentro de él
+  const insetBottom = useView((s) => Math.max(0, (s.camBottom ?? s.insetBottom) - Math.max(0, s.insetBottom - CANVAS_OVERLAP)))
+  const insetRight = 0
   const insetTop = useView((s) => s.insetTop)
   const cur = useRef({ pos: new THREE.Vector3(0, 1.2, 4), target: new THREE.Vector3(0, 1, 0), init: false })
   useEffect(() => {
@@ -376,8 +379,11 @@ export default function Stage3D() {
     setQuality(quality)
     document.documentElement.classList.toggle('hq', quality === 'alta')
   }, [quality, setQuality])
+  const insetB = useView((s) => s.insetBottom)
+  const insetR = useView((s) => s.insetRight)
   return (
     <Canvas
+      style={{ position: 'fixed', top: 0, left: 0, right: insetR, bottom: Math.max(0, insetB - CANVAS_OVERLAP), width: 'auto', height: 'auto' }}
       className="stage3d"
       dpr={dpr}
       shadows={quality === 'alta'}

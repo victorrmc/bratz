@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-02T18:55:43.180Z",
+  "results": [
+    {
+      "screen": "studio",
+      "throttle": "4x",
+      "fps": 30.245557995607903,
+      "p95FrameMs": 46.69999999925494,
+      "minFps": 21.413276231605014,
+      "quality": "baja",
+      "canvas": "136x202"
+    },
+    {
+      "screen": "runway",
+      "throttle": "4x",
+      "fps": 35.35086230139974,
+      "p95FrameMs": 40.69999999925494,
+      "minFps": 24.570024570474352,
+      "quality": "baja",
+      "canvas": "136x295"
+    }
+  ]
+}

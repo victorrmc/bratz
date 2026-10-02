@@ -66,7 +66,7 @@ export default function StudioScene({ quality }: { quality: string }) {
       <GlossyFloor color="#f7bfe0" quality={quality} />
       {/* arco de camerino con bombillas */}
       <mesh geometry={archGeo}>
-        <meshPhysicalMaterial color="#f1c86a" metalness={1} roughness={0.22} />
+        {quality === 'baja' ? <meshLambertMaterial color="#e8b850" /> : <meshPhysicalMaterial color="#f1c86a" metalness={1} roughness={0.22} />}
       </mesh>
       <Bulbs points={archBulbs} color="#fff0d6" size={0.03} intensity={2.4} />
       {/* fondo del arco: satén con brillo */}
@@ -78,14 +78,14 @@ export default function StudioScene({ quality }: { quality: string }) {
         <planeGeometry args={[2.24, 1.05]} />
         <meshStandardMaterial color="#ff9fd0" roughness={0.5} metalness={0.15} />
       </mesh>
-      {[-1, 1].map((sd) => (
+      {quality !== 'baja' && [-1, 1].map((sd) => (
         <mesh key={sd} geometry={curtain} position={[sd * 1.95, 1.7, -0.95]} rotation-y={-sd * 0.35}>
           <meshPhysicalMaterial color="#ff5fae" roughness={0.38} sheen={quality === 'baja' ? 0 : 1} sheenColor="#ffd1ec" side={THREE.DoubleSide} />
         </mesh>
       ))}
       <Podium color="#ffc6e6" radius={0.62} />
       {/* espejo de camerino */}
-      <group>
+      <group visible={quality !== 'baja'}>
         <mesh position={[-1.5, 1.33, -1.72]} geometry={frame}>
           <meshPhysicalMaterial color="#ffffff" roughness={0.3} clearcoat={1} />
         </mesh>
@@ -96,7 +96,7 @@ export default function StudioScene({ quality }: { quality: string }) {
         <Bulbs points={mirrorBulbs} />
       </group>
       {/* burro de ropa */}
-      <group position={[1.55, 0, -1.4]}>
+      <group position={[1.55, 0, -1.4]} visible={quality !== 'baja'}>
         {[-0.5, 0.5].map((x) => (
           <mesh key={x} position={[x, 0.85, 0]}>
             <cylinderGeometry args={[0.015, 0.015, 1.7, 8]} />
@@ -122,9 +122,13 @@ export default function StudioScene({ quality }: { quality: string }) {
       </group>
       <FloatingShape kind="heart" position={[-1.1, 2.3, -1.4]} scale={0.35} color="#ff5fae" />
       <FloatingShape kind="star" position={[1.2, 2.45, -1.2]} scale={0.3} color="#ffd76a" emissive={0.25} />
-      <FloatingShape kind="heart" position={[2.3, 1.0, -0.9]} scale={0.22} color="#c38bff" />
-      <FloatingShape kind="star" position={[-2.4, 2.0, -0.6]} scale={0.18} color="#7fd6ff" />
-      <FloatingGlints count={quality === 'baja' ? 16 : 40} />
+      {quality !== 'baja' && (
+        <>
+          <FloatingShape kind="heart" position={[2.3, 1.0, -0.9]} scale={0.22} color="#c38bff" />
+          <FloatingShape kind="star" position={[-2.4, 2.0, -0.6]} scale={0.18} color="#7fd6ff" />
+        </>
+      )}
+      {quality !== 'baja' && <FloatingGlints count={40} />}
       {quality !== 'baja' && <ContactShadows position={[0, 0.062, 0]} opacity={0.55} scale={2.2} blur={2.4} far={1.6} resolution={512} color="#8a3b6e" />}
     </>
   )
