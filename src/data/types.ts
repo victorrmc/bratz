@@ -135,6 +135,11 @@ export type HairPieceKind =
   | 'braids'
   | 'faceStrands'
   | 'halfUp'
+  | 'bunMessy'
+  | 'ponyBubble'
+  | 'braidSide'
+  | 'braidCrown'
+  | 'flowers'
 
 export interface HairStyleDef {
   id: string
