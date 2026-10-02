@@ -5,6 +5,7 @@ import {
   armSegs,
   earGeometry,
   footGeometry,
+  ankleGeometry,
   headGeometry,
   legSegs,
   limbGeometry,
@@ -57,6 +58,17 @@ const PARENT: Record<JointName, JointName | 'root'> = {
   hipR: 'hips',
   kneeR: 'hipR',
   ankleR: 'kneeR',
+}
+
+const footCache = new Map<number, { foot: THREE.BufferGeometry; ankle: THREE.BufferGeometry }>()
+function footFor(arch: number) {
+  const k = Math.round(arch * 100) / 100
+  let f = footCache.get(k)
+  if (!f) {
+    f = { foot: footGeometry(k), ankle: ankleGeometry(k) }
+    footCache.set(k, f)
+  }
+  return f
 }
 
 // Geometrías del cuerpo compartidas entre muñecas
@@ -121,7 +133,7 @@ function buildShared() {
         capEnd: true,
       }),
     },
-    foot: [footGeometry(0), footGeometry(0.5), footGeometry(1)],
+
   }
 }
 
@@ -143,6 +155,7 @@ export class DollRig {
   private skin: THREE.MeshPhysicalMaterial
   private fingers: { L: Finger[]; R: Finger[] } = { L: [], R: [] }
   private feet: { L: THREE.Mesh; R: THREE.Mesh }
+  private ankles: THREE.Mesh[] = []
   private outfit: OutfitResult | null = null
   private hair: HairResult | null = null
   private pose: Pose = restPose()
@@ -281,9 +294,13 @@ export class DollRig {
 
     // Pies descalzos
     const mkFoot = (side: 'L' | 'R') => {
-      const m = new THREE.Mesh(S.foot[0], this.skin)
+      const m = new THREE.Mesh(footFor(0).foot, this.skin)
       m.position.copy(PIVOTS[`ankle${side}`])
       this.attach[`ankle${side}`].add(m)
+      const a = new THREE.Mesh(footFor(0).ankle, this.skin)
+      a.position.copy(PIVOTS[`ankle${side}`])
+      this.attach[`ankle${side}`].add(a)
+      this.ankles.push(a)
       return m
     }
     this.feet = { L: mkFoot('L'), R: mkFoot('R') }
@@ -305,7 +322,9 @@ export class DollRig {
     this.outfit = buildOutfit(look)
     this.addPieces(this.outfit.pieces)
     this.heelLift = this.outfit.heelLift
-    const fg = shared!.foot[this.outfit.footArch >= 0.75 ? 2 : this.outfit.footArch >= 0.3 ? 1 : 0]
+    const ff = footFor(this.outfit.footArch)
+    const fg = ff.foot
+    for (const a of this.ankles) a.geometry = ff.ankle
     this.feet.L.geometry = fg
     this.feet.R.geometry = fg
     this.feet.L.visible = this.feet.R.visible = !this.outfit.hideFeet

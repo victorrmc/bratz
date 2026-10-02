@@ -53,7 +53,7 @@ export default function DevView() {
     face: [0, 1.53, 0.65, 1.52],
     head: [0, 1.5, 1.2, 1.45],
     hands: [0.35, 0.82, 0.55, 0.8],
-    feet: [0, 0.25, 1.0, 0.1],
+    feet: [0, 0.2, 0.55, 0.07],
   }
   const c = camPos[cam]
   return (

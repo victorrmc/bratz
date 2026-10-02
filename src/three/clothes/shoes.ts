@@ -22,7 +22,7 @@ interface ShoeSpec {
 function spec(item: ItemDef): ShoeSpec {
   const p = item.params ?? {}
   const heel = typeof p.heel === 'number' ? p.heel : 0
-  const pump = (t: number) => (t < 0.2 ? 0.62 : t > 0.62 ? 1 : 0.42 + 0.58 * smoothstep(0.45, 0.62, t))
+  const pump = (t: number) => 0.56 + 0.44 * smoothstep(0.42, 0.72, t)
   switch (item.model) {
     case 'heels':
       return { arch: 1, soleFront: 0.006, heel: 'stiletto', coverage: pump, closed: true, shaft: 0, pointy: true }
@@ -76,9 +76,13 @@ function shell(arch: number, off: number, coverage: (t: number) => number, point
       const cov = Math.max(0.05, coverage(t))
       const a = Math.PI + (u - 0.5) * 2 * Math.PI * cov
       let r = footR(t) + off
-      if (pointy && t > 0.8) r *= 1 - 0.35 * smoothstep(0.8, 1, t)
-      // la punta se alarga para cerrar el zapato
-      const tipExt = t > 0.97 ? (t - 0.97) * 0.4 : 0
+      if (pointy && t > 0.8) r *= 1 - 0.3 * smoothstep(0.8, 1, t)
+      // extremos redondeados: la punta y el talón se cierran
+      const tipK = smoothstep(0.86, 1, t)
+      const heelK = smoothstep(0.1, 0, t)
+      const tipExt = Math.sin(tipK * Math.PI * 0.5) * r * (pointy ? 0.85 : 0.6) - Math.sin(heelK * Math.PI * 0.5) * r * 0.55
+      r *= Math.cos(tipK * Math.PI * 0.5) * 0.92 + 0.08 * (1 - tipK) + (tipK > 0 ? 0.0 : 0)
+      r *= Math.sqrt(Math.max(0.0, 1 - heelK * heelK * 0.97))
       out.copy(f.p)
         .addScaledVector(f.t, tipExt)
         .addScaledVector(f.n, Math.cos(a) * r * (ev + 0.15))
@@ -86,22 +90,6 @@ function shell(arch: number, off: number, coverage: (t: number) => number, point
     },
     { orient: 'auto' },
   )
-}
-
-/** Puntera redondeada que cierra la carcasa. */
-function toeCap(arch: number, off: number, pointy: boolean): THREE.BufferGeometry {
-  const pts = footPath(arch)
-  const end = new THREE.Vector3(...pts[pts.length - 1])
-  const prev = new THREE.Vector3(...pts[pts.length - 2])
-  const dir = end.clone().sub(prev).normalize()
-  const r = footR(1) + off
-  const g = new THREE.SphereGeometry(r * (pointy ? 0.75 : 1.05), 20, 12, 0, Math.PI * 2, 0, Math.PI / 2)
-  g.rotateX(Math.PI / 2)
-  g.scale(FOOT_ELLIPSE[1], FOOT_ELLIPSE[0] + 0.15, pointy ? 1.6 : 1.1)
-  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir)
-  g.applyQuaternion(q)
-  g.translate(end.x, end.y, end.z)
-  return g
 }
 
 /** Suela: perfil plano bajo el pie, hasta `bottom(t)` (relativo al tobillo). */
@@ -118,7 +106,7 @@ function sole(arch: number, bottom: (t: number, top: number) => number, widen = 
       const j = Math.round(v * segs)
       const f = frames[j]
       const t = v
-      const w = footR(t) * eh + widen
+      const w = (footR(t) * eh + widen) * (0.35 + 0.65 * Math.sin(Math.min(1, Math.min(t, 1 - t) * 6 + 0.05) * Math.PI * 0.5))
       const top = f.p.y - footR(t) * ev * 0.92
       const bot = Math.min(top - 0.003, bottom(t, top))
       const a = u * Math.PI * 2
@@ -127,7 +115,7 @@ function sole(arch: number, bottom: (t: number, top: number) => number, widen = 
       // sección redondeada
       const x = side * w * (1 - 0.15 * Math.pow(Math.abs(Math.sin(a)), 4))
       const y = isTop ? top : bot
-      const zf = f.p.z + (t > 0.96 ? (t - 0.96) * 0.5 : 0) - (t < 0.03 ? (0.03 - t) * 0.4 : 0)
+      const zf = f.p.z + t * 0.012 - 0.006
       out.set(f.p.x + x, y + (isTop ? 0 : 0) + Math.sin(a) * 0.0005, zf)
     },
     { closedU: true, orient: 'auto' },
@@ -154,7 +142,7 @@ function laces(arch: number): THREE.BufferGeometry {
   for (let i = 0; i < 4; i++) {
     const t = 0.35 + i * 0.09
     const p = path.getPointAt(t)
-    const r = footR(t) * (FOOT_ELLIPSE[0] + 0.15) + 0.004
+    const r = footR(t) * (FOOT_ELLIPSE[0] + 0.15) + 0.0015
     const a = new THREE.Vector3(-0.012, p.y + r, p.z - 0.004)
     const b = new THREE.Vector3(0.012, p.y + r, p.z + 0.004)
     parts.push(sweep(new THREE.LineCurve3(a, b), () => 0.0016, { radial: 6, segments: 2 }))
@@ -226,10 +214,7 @@ export function buildShoes(item: ItemDef, inst: ItemInstance): Built & { lift: n
   const key = item.id
   const geos = cg(`shoe|${key}`, () => {
     const parts: THREE.BufferGeometry[] = []
-    if (s.closed) {
-      parts.push(shell(s.arch, 0.0035, s.coverage, Boolean(s.pointy)))
-      parts.push(toeCap(s.arch, 0.0035, Boolean(s.pointy)))
-    }
+    if (s.closed) parts.push(shell(s.arch, 0.0035, s.coverage, Boolean(s.pointy)))
     if (item.model === 'sandals') parts.push(sandalStraps(s.arch))
     if (item.model === 'flipflops') parts.push(flipStrap())
     if (item.model === 'platform') {

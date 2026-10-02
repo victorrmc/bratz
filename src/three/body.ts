@@ -296,6 +296,19 @@ export function footPath(arch: number): [number, number, number][] {
   return [heel, mid, arc, ball, toe]
 }
 
+/** Tobillo/empeine que une la pierna con el pie (siempre visible). */
+export function ankleGeometry(arch: number): THREE.BufferGeometry {
+  const p = footPath(arch)
+  const mid = p[1]
+  const arc = p[2]
+  const c = curveOf([
+    [0, 0.022, 0.0],
+    [0, 0.0, 0.0],
+    [0, (mid[1] + arc[1]) / 2 + 0.006, (mid[2] + arc[2]) / 2 - 0.004],
+  ])
+  return sweep(c, (t) => 0.021 - 0.003 * t, { radial: 20, segments: 10, capStart: true, capEnd: true, ellipse: [1, 0.95] })
+}
+
 /** Altura (relativa al tobillo) de la planta bajo los dedos: sirve para apoyar en el suelo. */
 export function toeBottom(arch: number): number {
   const p = footPath(arch)
