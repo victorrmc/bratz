@@ -7,9 +7,11 @@ import { Toasts } from './ui/kit'
 import Loading from './ui/Loading'
 import Splash from './ui/Splash'
 import { interaction } from './three/view'
+import { installScreenTransitions, transitionDir } from './ui/transitions'
 
 // Acceso para pruebas automáticas y depuración
 ;(window as unknown as { __clara: unknown }).__clara = { store: useGame, interaction, view: useView }
+installScreenTransitions()
 
 // Carga diferida: el motor 3D y cada modo de juego van en trozos separados.
 const Stage3D = lazy(() => import('./three/Stage3D'))
@@ -113,9 +115,9 @@ function ScreenRouter() {
       node = <LetterScreen />
       break
   }
-  // Sin animación de salida: el cambio de pantalla es inmediato y nunca se queda a medias
+  // El cambio de pantalla es inmediato; la salida la anima una copia inerte (ui/transitions.ts)
   return (
-    <div key={screen} className="ui-layer screen-in" data-screen={screen}>
+    <div key={screen} className={`ui-layer screen-in ${transitionDir()}`} data-screen={screen}>
       <Suspense fallback={null}>{node}</Suspense>
     </div>
   )
