@@ -1,7 +1,10 @@
 import { useId } from 'react'
 import type { ItemDef, PatternId } from '../data/types'
+import { useThumb } from './thumbs'
 
-// Ilustraciones vectoriales de cada prenda para el catálogo (64×64).
+// Miniaturas del catálogo. La imagen buena es un render de la propia pieza 3D
+// (ver ui/thumbs.ts); mientras se genera, o si no se puede, se muestra una
+// ilustración vectorial de la prenda (64×64).
 
 const SHAPES: Record<string, string> = {
   top: 'M20 14c4 3 20 3 24 0l8 6-4 8-4-2v22H20V26l-4 2-4-8z',
@@ -171,7 +174,15 @@ function PatternDef({ id, pattern, c1, c2 }: { id: string; pattern: PatternId; c
   }
 }
 
-export function ItemGlyph({ item, color, color2, pattern }: { item: ItemDef; color?: string; color2?: string; pattern?: PatternId }) {
+type GlyphProps = { item: ItemDef; color?: string; color2?: string; pattern?: PatternId }
+
+export function ItemGlyph(props: GlyphProps) {
+  const url = useThumb(props.item, props.color, props.color2, props.pattern)
+  if (url) return <img className="glyph thumb" src={url} alt="" draggable={false} decoding="async" data-thumb={props.item.id} />
+  return <VectorGlyph {...props} />
+}
+
+export function VectorGlyph({ item, color, color2, pattern }: GlyphProps) {
   const uid = useId().replace(/:/g, '')
   const c1 = color ?? item.color
   const c2 = color2 ?? item.color2 ?? '#ffffff'
