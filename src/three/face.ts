@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import type { DollDef, Expression, MakeupLook } from '../data/types'
-import { FACE } from './body'
+import { FACE, J, headSurfaceZ, type FaceShape } from './body'
 import { mixHex } from '../game/color'
+import { surface, sweep } from './geo'
 
 // Cara pintada (estilo muñeca) en vista frontal, en coordenadas de mundo
 // relativas al centro de la cabeza (y hacia arriba). El maquillaje son capas.
@@ -588,8 +589,36 @@ function drawFreckles(ctx: Ctx, color: string, a: number) {
   }
 }
 
-/** Pinta la cara completa. Devuelve el lienzo de color y el de rugosidad/metal. */
-export function paintFace(o: FaceOpts): { color: HTMLCanvasElement; rm: HTMLCanvasElement } {
+/** Ojos abiertos en esta cara: s = +1 (izquierdo de la muñeca) y −1. */
+export function openEyes(o: Pick<FaceOpts, 'closed' | 'expression'>): number[] {
+  if (o.closed) return []
+  return o.expression === 'guino' ? [-1] : [-1, 1]
+}
+
+/**
+ * Recorte de los ojos (alpha de la cabeza): el almendrado se vacía para que
+ * se vea el ojo 3D de detrás. Se encoge un poco para conservar la línea de pestañas.
+ */
+function paintAlpha(o: FaceOpts, w: number, h: number): HTMLCanvasElement {
+  const cv = makeCanvas(w, h)
+  const ctx = cv.getContext('2d')!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, w, h)
+  setWorld(ctx, w, h)
+  for (const s of openEyes(o)) {
+    const e = eyePts(s, o.doll.face.eyeSize)
+    ctx.fillStyle = '#000000'
+    almond(ctx, e, s)
+    ctx.fill()
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = 0.0018
+    ctx.stroke()
+  }
+  return cv
+}
+
+/** Pinta la cara completa. Devuelve el lienzo de color, el de rugosidad/metal y el recorte de los ojos. */
+export function paintFace(o: FaceOpts): { color: HTMLCanvasElement; rm: HTMLCanvasElement; alpha: HTMLCanvasElement } {
   const w = o.res
   const h = Math.round(w * (FACE.h / FACE.w))
   const cv = makeCanvas(w, h)
@@ -745,16 +774,414 @@ export function paintFace(o: FaceOpts): { color: HTMLCanvasElement; rm: HTMLCanv
     r.ellipse(-0.07, -0.024, 0.014, 0.016, 0, 0, Math.PI * 2)
     r.fill()
   }
-  return { color: cv, rm }
+  return { color: cv, rm, alpha: paintAlpha(o, Math.round(w / 2), Math.round(h / 2)) }
 }
 
-export function faceTextures(o: FaceOpts): { map: THREE.CanvasTexture; rm: THREE.CanvasTexture } {
-  const { color, rm } = paintFace(o)
+export function faceTextures(o: FaceOpts): { map: THREE.CanvasTexture; rm: THREE.CanvasTexture; alpha: THREE.CanvasTexture } {
+  const { color, rm, alpha } = paintFace(o)
   const map = new THREE.CanvasTexture(color)
   map.colorSpace = THREE.SRGBColorSpace
   map.anisotropy = 4
   map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping
   const t = new THREE.CanvasTexture(rm)
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping
-  return { map, rm: t }
+  const a = new THREE.CanvasTexture(alpha)
+  a.wrapS = a.wrapT = THREE.ClampToEdgeWrapping
+  return { map, rm: t, alpha: a }
+}
+
+
+// ───────────────────────── RELIEVE DE LA CARA ─────────────────────────
+
+/**
+ * Normal map de la cara (mismas UV planas que la textura pintada): nariz con
+ * aletas y orificios, surco nasolabial, filtrum, borde del labio, comisuras y barbilla.
+ */
+export function faceNormalCanvas(doll: DollDef, expression: Expression, res = 512): HTMLCanvasElement {
+  const w = res
+  const h = Math.round(w * (FACE.h / FACE.w))
+  const hc = makeCanvas(w, h)
+  const ctx = hc.getContext('2d', { willReadFrequently: true })!
+  ctx.fillStyle = 'rgb(128,128,128)'
+  ctx.fillRect(0, 0, w, h)
+  setWorld(ctx, w, h)
+  const px = (2 * FACE.w) / w
+  const blob = (x: number, y: number, rx: number, ry: number, a: number, rot = 0) => {
+    const r = Math.max(rx, ry)
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r)
+    const c = a > 0 ? '255,255,255' : '0,0,0'
+    g.addColorStop(0, `rgba(${c},${Math.abs(a)})`)
+    g.addColorStop(0.55, `rgba(${c},${Math.abs(a) * 0.45})`)
+    g.addColorStop(1, `rgba(${c},0)`)
+    ctx.save()
+    ctx.translate(x, y)
+    ctx.rotate(rot)
+    ctx.scale(rx / r, ry / r)
+    ctx.fillStyle = g
+    ctx.fillRect(-r, -r, 2 * r, 2 * r)
+    ctx.restore()
+  }
+  // nariz: punta, aletas, orificios y puente
+  blob(0, -0.037, 0.0085, 0.008, 0.4)
+  for (const s of [-1, 1]) {
+    blob(s * 0.0072, -0.0428, 0.0045, 0.004, 0.22)
+    blob(s * 0.0056, -0.0466, 0.0019, 0.0011, -0.35, s * 0.35)
+    // pliegue nasolabial muy suave
+    blob(s * 0.021, -0.062, 0.0026, 0.012, -0.08, s * 0.45)
+  }
+  blob(0, -0.016, 0.0035, 0.02, 0.18)
+  // filtrum: dos columnas y el surco entre ellas
+  for (const s of [-1, 1]) blob(s * 0.0034, -0.0575, 0.0016, 0.0065, 0.14)
+  blob(0, -0.0575, 0.002, 0.006, -0.12)
+  // labios: borde del bermellón, volumen y la línea entre labios
+  const L = doll.face.lipFullness
+  const cy = -0.0752
+  const up = 0.0098 * L
+  const lo = 0.0128 * L
+  const hw = 0.025 * Math.pow(L, 0.5) * (expression === 'seria' ? 0.94 : expression === 'sonrisa' ? 1.06 : 1)
+  const smile = expression === 'sonrisa' ? 0.0045 : expression === 'guino' ? 0.0024 : 0
+  ctx.save()
+  ctx.lineCap = 'round'
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)'
+  ctx.lineWidth = 0.0018
+  ctx.beginPath()
+  ctx.moveTo(-hw, cy + smile)
+  ctx.bezierCurveTo(-hw + 0.006, cy + up * 0.55, -0.0085, cy + up * 1.05, -0.0035, cy + up * 0.98)
+  ctx.quadraticCurveTo(0, cy + up * 0.72, 0.0035, cy + up * 0.98)
+  ctx.bezierCurveTo(0.0085, cy + up * 1.05, hw - 0.006, cy + up * 0.55, hw, cy + smile)
+  ctx.stroke()
+  ctx.restore()
+  blob(0, cy + up * 0.45, hw * 0.75, up * 0.5, 0.35)
+  blob(0, cy - lo * 0.55, hw * 0.7, lo * 0.55, 0.5)
+  ctx.save()
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)'
+  ctx.lineWidth = 0.0014
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(-hw, cy + smile)
+  ctx.bezierCurveTo(-hw + 0.008, cy + 0.0006, -0.006, cy + 0.0012, 0, cy + 0.0004)
+  ctx.bezierCurveTo(0.006, cy + 0.0012, hw - 0.008, cy + 0.0006, hw, cy + smile)
+  ctx.stroke()
+  ctx.restore()
+  for (const s of [-1, 1]) blob(s * (hw + 0.0012), cy + smile + 0.0004, 0.0022, 0.0018, -0.6)
+  // surco mentolabial y barbilla
+  blob(0, cy - lo * 1.5, hw * 0.5, 0.004, -0.2)
+  blob(0, -0.118, 0.016, 0.011, 0.25)
+  // pómulos
+  for (const s of [-1, 1]) blob(s * 0.066, -0.03, 0.024, 0.014, 0.12, s * -0.3)
+
+  // altura → normal (Sobel); 1 nivel de gris ≈ 0,06 mm de relieve
+  const src = ctx.getImageData(0, 0, w, h).data
+  const out = makeCanvas(w, h)
+  const octx = out.getContext('2d')!
+  const img = octx.createImageData(w, h)
+  const kH = 0.000028 / px
+  const H = (x: number, y: number) => src[(Math.min(h - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))) * 4] - 128
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = (H(x + 1, y - 1) + 2 * H(x + 1, y) + H(x + 1, y + 1) - H(x - 1, y - 1) - 2 * H(x - 1, y) - H(x - 1, y + 1)) / 8
+      // fila hacia abajo = v decreciente
+      const dy = -(H(x - 1, y + 1) + 2 * H(x, y + 1) + H(x + 1, y + 1) - H(x - 1, y - 1) - 2 * H(x, y - 1) - H(x + 1, y - 1)) / 8
+      let nx = -dx * kH
+      let ny = -dy * kH
+      const l = Math.hypot(nx, ny, 1)
+      nx /= l
+      ny /= l
+      const o = (y * w + x) * 4
+      img.data[o] = Math.round((nx * 0.5 + 0.5) * 255)
+      img.data[o + 1] = Math.round((ny * 0.5 + 0.5) * 255)
+      img.data[o + 2] = Math.round((0.5 / l + 0.5) * 255)
+      img.data[o + 3] = 255
+    }
+  }
+  octx.putImageData(img, 0, 0)
+  return out
+}
+
+// ───────────────────────── OJOS 3D ─────────────────────────
+
+/** Rectángulo (coordenadas de cara) que cubre un ojo con margen. */
+function eyeRect(e: ReturnType<typeof eyePts>, s: number) {
+  const xs = [e.inner[0], e.outer[0]]
+  return {
+    x0: Math.min(...xs) - 0.006,
+    x1: Math.max(...xs) + 0.006,
+    y0: e.bottom - 0.006,
+    y1: e.top + 0.007,
+    s,
+  }
+}
+
+/** Distancia normalizada al almendrado (≤ 1 dentro). */
+function almondQ(e: ReturnType<typeof eyePts>, x: number, y: number) {
+  const cx = (e.inner[0] + e.outer[0]) / 2
+  const cy = (e.top + e.bottom) / 2
+  const a = Math.abs(e.outer[0] - e.inner[0]) / 2
+  const b = (e.top - e.bottom) / 2
+  return ((x - cx) / a) ** 2 + ((y - cy) / b) ** 2
+}
+
+/** Textura del globo ocular: esclerótica, iris con fibras, pupila, sombra del párpado y brillos. */
+function eyeCanvas(doll: DollDef, s: number, res = 256): HTMLCanvasElement {
+  const e = eyePts(s, doll.face.eyeSize)
+  const R = eyeRect(e, s)
+  const w = res
+  const h = Math.round(res * ((R.y1 - R.y0) / (R.x1 - R.x0)))
+  const cv = makeCanvas(w, h)
+  const ctx = cv.getContext('2d')!
+  const k = w / (R.x1 - R.x0)
+  ctx.setTransform(k, 0, 0, -k, -R.x0 * k, R.y1 * k)
+  // esclerótica: blanco cálido, más oscuro hacia las comisuras
+  ctx.fillStyle = '#f4eef2'
+  ctx.fillRect(R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0)
+  const sc = ctx.createRadialGradient(e.cx, e.cy, 0.004, e.cx, e.cy, 0.034 * e.k)
+  sc.addColorStop(0, 'rgba(255,255,255,0.9)')
+  sc.addColorStop(0.55, 'rgba(250,244,248,0.4)')
+  sc.addColorStop(1, 'rgba(196,160,176,0.85)')
+  ctx.fillStyle = sc
+  ctx.fillRect(R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0)
+  // iris
+  const ir = 0.0128 * e.k
+  const icx = e.cx + s * 0.0012
+  const icy = e.cy + 0.0012
+  const ic = doll.eyes
+  const ig = ctx.createRadialGradient(icx, icy - ir * 0.25, ir * 0.05, icx, icy, ir)
+  const warm = mixHex(ic, '#b8732e', 0.35)
+  ig.addColorStop(0, tint(warm, 0.3))
+  ig.addColorStop(0.4, tint(warm, 0.12))
+  ig.addColorStop(0.78, ic)
+  ig.addColorStop(1, tint(ic, -0.55))
+  ctx.fillStyle = ig
+  ctx.beginPath()
+  ctx.arc(icx, icy, ir, 0, Math.PI * 2)
+  ctx.fill()
+  // fibras radiales y collarete
+  let seed = 11
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+  ctx.lineCap = 'round'
+  for (let i = 0; i < 70; i++) {
+    const a = (i / 70) * Math.PI * 2 + rnd() * 0.05
+    const r0 = ir * (0.4 + rnd() * 0.08)
+    const r1 = ir * (0.8 + rnd() * 0.17)
+    ctx.strokeStyle = rnd() < 0.5 ? rgba(tint(warm, 0.45), 0.2) : rgba(tint(ic, -0.5), 0.3)
+    ctx.lineWidth = ir * (0.02 + rnd() * 0.03)
+    ctx.beginPath()
+    ctx.moveTo(icx + Math.cos(a) * r0, icy + Math.sin(a) * r0)
+    ctx.quadraticCurveTo(icx + Math.cos(a + 0.06) * (r0 + r1) / 2, icy + Math.sin(a + 0.06) * (r0 + r1) / 2, icx + Math.cos(a) * r1, icy + Math.sin(a) * r1)
+    ctx.stroke()
+  }
+  ctx.strokeStyle = rgba(tint(warm, 0.4), 0.22)
+  ctx.lineWidth = ir * 0.06
+  ctx.beginPath()
+  for (let i = 0; i <= 40; i++) {
+    const a = (i / 40) * Math.PI * 2
+    const r = ir * (0.5 + 0.04 * Math.sin(a * 7))
+    if (i === 0) ctx.moveTo(icx + Math.cos(a) * r, icy + Math.sin(a) * r)
+    else ctx.lineTo(icx + Math.cos(a) * r, icy + Math.sin(a) * r)
+  }
+  ctx.stroke()
+  // anillo límbico
+  const lg = ctx.createRadialGradient(icx, icy, ir * 0.82, icx, icy, ir * 1.04)
+  lg.addColorStop(0, rgba(tint(ic, -0.8), 0))
+  lg.addColorStop(0.6, rgba(tint(ic, -0.8), 0.85))
+  lg.addColorStop(1, rgba(tint(ic, -0.8), 0))
+  ctx.fillStyle = lg
+  ctx.beginPath()
+  ctx.arc(icx, icy, ir * 1.06, 0, Math.PI * 2)
+  ctx.fill()
+  // pupila
+  const pg = ctx.createRadialGradient(icx, icy, 0, icx, icy, ir * 0.44)
+  pg.addColorStop(0, '#050204')
+  pg.addColorStop(0.85, '#0b0608')
+  pg.addColorStop(1, rgba('#0b0608', 0))
+  ctx.fillStyle = pg
+  ctx.beginPath()
+  ctx.arc(icx, icy, ir * 0.44, 0, Math.PI * 2)
+  ctx.fill()
+  // sombra que proyecta el párpado superior sobre el globo
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0)
+  ctx.clip()
+  for (let i = 0; i < 6; i++) {
+    const off = i * 0.0011 * e.k
+    ctx.strokeStyle = `rgba(60,24,40,${0.2 - i * 0.03})`
+    ctx.lineWidth = 0.0022 * e.k
+    ctx.beginPath()
+    const [ix, iy] = e.inner
+    const [ox, oy] = e.outer
+    ctx.moveTo(ix, iy - off)
+    ctx.bezierCurveTo(ix + s * 0.006 * e.k, e.top + 0.002 * e.k - off, ox - s * 0.016 * e.k, e.top + 0.0035 * e.k - off, ox, oy - off)
+    ctx.stroke()
+  }
+  ctx.restore()
+  // brillos pintados (luz de estudio): el reflejo real lo pone la córnea
+  ctx.fillStyle = 'rgba(255,255,255,0.95)'
+  ctx.beginPath()
+  ctx.ellipse(icx - 0.0042 * e.k, icy + 0.0042 * e.k, 0.0029 * e.k, 0.0024 * e.k, 0.5, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(icx + 0.0043 * e.k, icy - 0.0043 * e.k, 0.0011 * e.k, 0, Math.PI * 2)
+  ctx.fill()
+  return cv
+}
+
+export interface EyeSet {
+  /** grupos por lado: [s = +1, s = −1] */
+  sides: Record<string, THREE.Group>
+  dispose: () => void
+}
+
+const eyeGeoCache = new Map<string, { ball: THREE.BufferGeometry; cornea: THREE.BufferGeometry; lash: THREE.BufferGeometry; lower: THREE.BufferGeometry; lid: THREE.BufferGeometry }>()
+
+function eyeGeometries(size: number, s: number, shape: FaceShape) {
+  const key = `${size}|${s}|${shape.lipFullness}`
+  const hit = eyeGeoCache.get(key)
+  if (hit) return hit
+  const e = eyePts(s, size)
+  const R = eyeRect(e, s)
+  const zf = (x: number, y: number) => headSurfaceZ(x, y, shape)
+  const ir = 0.0128 * e.k
+  const icx = e.cx + s * 0.0012
+  const icy = e.cy + 0.0012
+  const hc = J.headCenter
+  // globo: lámina convexa que sigue la cara por detrás del almendrado
+  const ballZ = (x: number, y: number) => {
+    const q = almondQ(e, x, y)
+    const dome = Math.max(0, 1 - q)
+    return zf(x, y) - 0.0024 + 0.0012 * Math.sqrt(dome)
+  }
+  const ball = surface(
+    40,
+    28,
+    (u, v, out) => {
+      const x = R.x0 + (R.x1 - R.x0) * u
+      const y = R.y0 + (R.y1 - R.y0) * v
+      let z = ballZ(x, y)
+      // iris hundido bajo la córnea
+      const d = Math.hypot(x - icx, y - icy)
+      z -= 0.0007 * (1 - smooth(ir * 0.92, ir * 1.04, d))
+      out.set(x + hc.x, y + hc.y, z + hc.z)
+    },
+    { uvMode: 'param', fixed: true, flip: true },
+  )
+  // córnea: casquete transparente sobre el iris
+  const rc = ir * 1.22
+  const cornea = surface(
+    28,
+    10,
+    (u, v, out) => {
+      const a = u * Math.PI * 2
+      const r = rc * v
+      const x = icx + Math.cos(a) * r
+      const y = icy + Math.sin(a) * r
+      const t = 1 - (r / rc) ** 2
+      out.set(x + hc.x, y + hc.y, ballZ(x, y) + 0.00015 + 0.0011 * Math.sqrt(Math.max(0, t)) + hc.z)
+    },
+    { closedU: true, uvMode: 'param', fixed: true },
+  )
+  // párpado superior (línea de pestañas con volumen), inferior y pliegue
+  const [ix, iy] = e.inner
+  const [ox, oy] = e.outer
+  const upperAt = (t: number, lift = 0): THREE.Vector3 => {
+    const p1 = [ix + s * 0.006 * e.k, e.top + 0.002 * e.k]
+    const p2 = [ox - s * 0.016 * e.k, e.top + 0.0035 * e.k]
+    const u = 1 - t
+    const x = u * u * u * ix + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * ox
+    const y = u * u * u * iy + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * oy + lift
+    return new THREE.Vector3(x, y, 0)
+  }
+  const lowerAt = (t: number): THREE.Vector3 => {
+    const p1 = [ox - s * 0.008 * e.k, e.bottom - 0.001 * e.k]
+    const p2 = [ix + s * 0.01 * e.k, e.bottom + 0.0005 * e.k]
+    const u = 1 - t
+    const x = u * u * u * ox + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * ix
+    const y = u * u * u * oy + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * iy
+    return new THREE.Vector3(x, y, 0)
+  }
+  const onFace = (pts: THREE.Vector3[], dz: number) =>
+    new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(p.x + hc.x, p.y + hc.y, zf(p.x, p.y) + dz + hc.z)), false, 'centripetal')
+  const N = 16
+  const ts = Array.from({ length: N + 1 }, (_, i) => i / N)
+  const lash = sweep(onFace(ts.map((t) => upperAt(t, -0.0004)), -0.0006), (t) => 0.00125 * Math.pow(Math.sin(Math.PI * Math.min(1, 0.04 + t * 0.98)), 0.45) * (0.75 + 0.35 * t), {
+    radial: 10,
+    segments: 30,
+    capStart: true,
+    capEnd: true,
+  })
+  const lower = sweep(onFace(ts.map((t) => lowerAt(t)), -0.0007), (t) => 0.00085 * Math.pow(Math.sin(Math.PI * t), 0.6) + 0.0001, {
+    radial: 8,
+    segments: 24,
+    capStart: true,
+    capEnd: true,
+  })
+  // pliegue del párpado: un abultamiento de piel justo encima de la línea de pestañas
+  const lid = sweep(onFace(ts.map((t) => upperAt(0.03 + t * 0.94, 0.0024 * e.k)), -0.0021), (t) => 0.0027 * Math.pow(Math.sin(Math.PI * t), 0.8), {
+    radial: 12,
+    segments: 30,
+    capStart: true,
+    capEnd: true,
+  })
+  planarFaceUV(lid)
+  const res = { ball, cornea, lash, lower, lid }
+  eyeGeoCache.set(key, res)
+  return res
+}
+
+function smooth(a: number, b: number, x: number) {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)))
+  return t * t * (3 - 2 * t)
+}
+
+/** UV planas de la cara (para mallas que reutilizan la textura pintada). */
+function planarFaceUV(g: THREE.BufferGeometry) {
+  const pos = g.getAttribute('position') as THREE.BufferAttribute
+  const uv = new Float32Array(pos.count * 2)
+  for (let i = 0; i < pos.count; i++) {
+    uv[i * 2] = 0.5 + (pos.getX(i) - J.headCenter.x) / (2 * FACE.w)
+    uv[i * 2 + 1] = 0.5 + (pos.getY(i) - J.headCenter.y) / (2 * FACE.h)
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+}
+
+const corneaMat = new THREE.MeshPhysicalMaterial({
+  color: '#000000',
+  roughness: 0.03,
+  ior: 2.2,
+  clearcoat: 1,
+  clearcoatRoughness: 0.02,
+  envMapIntensity: 3,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+})
+const lashMat = new THREE.MeshPhysicalMaterial({ color: '#1a0e14', roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.3 })
+
+/**
+ * Ojos 3D de una muñeca, en coordenadas de reposo de la cabeza: globo con iris
+ * hundido, córnea transparente con reflejo y párpados con volumen. `lidMat`
+ * es el material de la cabeza: el pliegue reutiliza la cara pintada.
+ */
+export function buildEyes(doll: DollDef, shape: FaceShape, lidMat: THREE.Material, skinMat: THREE.Material): EyeSet {
+  const sides: Record<string, THREE.Group> = {}
+  const disposables: { dispose: () => void }[] = []
+  for (const s of [1, -1]) {
+    const g = eyeGeometries(doll.face.eyeSize, s, shape)
+    const tex = new THREE.CanvasTexture(eyeCanvas(doll, s))
+    tex.colorSpace = THREE.SRGBColorSpace
+    tex.anisotropy = 4
+    const ballMat = new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.06 })
+    disposables.push(tex, ballMat)
+    const grp = new THREE.Group()
+    grp.name = `ojo-${s > 0 ? 'izq' : 'der'}`
+    const ball = new THREE.Mesh(g.ball, ballMat)
+    const cornea = new THREE.Mesh(g.cornea, corneaMat)
+    cornea.renderOrder = 2
+    const lash = new THREE.Mesh(g.lash, lashMat)
+    const lower = new THREE.Mesh(g.lower, skinMat)
+    const lid = new THREE.Mesh(g.lid, lidMat)
+    grp.add(ball, cornea, lash, lower, lid)
+    sides[String(s)] = grp
+  }
+  return { sides, dispose: () => disposables.forEach((d) => d.dispose()) }
 }
