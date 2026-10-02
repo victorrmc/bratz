@@ -62,6 +62,8 @@ export type IconName =
   | 'sticker'
   | 'frame'
   | 'play'
+  | 'search'
+  | 'filter'
   | 'home'
 
 const P: Record<IconName, ReactElement> = {
@@ -320,6 +322,8 @@ const P: Record<IconName, ReactElement> = {
     </>
   ),
   play: <path d="M8 5l11 7-11 7z" />,
+  search: <path d="M10.5 4a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zM15.5 15.5L20 20" />,
+  filter: <path d="M4 6h16M7 12h10M10 18h4" />,
 }
 
 export function Icon({ name, ...rest }: { name: IconName } & SVGProps<SVGSVGElement>) {

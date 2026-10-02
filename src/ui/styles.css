@@ -358,7 +358,7 @@ html.hq .glass {
   border-color: var(--fuchsia);
   box-shadow: 0 0 0 3px rgba(255, 45, 138, 0.25), 0 4px 14px rgba(255, 45, 138, 0.3);
 }
-.card.locked > svg.glyph {
+.card.locked .glyph {
   filter: grayscale(1) opacity(0.35);
 }
 .card .badge {
@@ -398,10 +398,33 @@ html.hq .glass {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.card .glyph-wrap {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding-bottom: 12px;
+  /* foco suave tras la prenda: que lo blanco y lo plateado no se pierdan */
+  background: radial-gradient(circle at 50% 44%, rgba(255, 168, 214, 0.42) 0, rgba(214, 186, 255, 0.22) 34%, transparent 58%);
+}
 .card svg.glyph {
   width: 72%;
   height: 72%;
-  margin-bottom: 8px;
+}
+/* miniatura renderizada de la pieza 3D */
+.card img.glyph {
+  width: 94%;
+  height: 94%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 4px rgba(120, 20, 90, 0.22));
+  animation: thumbIn 0.35s ease-out;
+  -webkit-user-drag: none;
+}
+@keyframes thumbIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
 }
 
 .swatches {
@@ -613,10 +636,267 @@ html.hq .glass {
 }
 
 .screen-in {
-  animation: screenIn 0.2s ease-out;
+  animation: screenIn 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @keyframes screenIn {
   from {
-    opacity: 0.4;
+    opacity: 0;
+    transform: translate3d(var(--enter-x, 18px), 0, 0) scale(0.985);
+  }
+}
+.screen-in.back {
+  --enter-x: -18px;
+}
+
+/* ───── Transiciones: copia inerte de la pantalla que sale ───── */
+.screen-ghost {
+  z-index: 9;
+  pointer-events: none !important;
+  animation: screenOut 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+.screen-ghost * {
+  pointer-events: none !important;
+}
+.screen-ghost.back {
+  --exit-x: 22px;
+}
+@keyframes screenOut {
+  to {
+    opacity: 0;
+    transform: translate3d(var(--exit-x, -22px), 0, 0) scale(0.985);
+  }
+}
+
+/* ───── Vestidor: búsqueda y filtros ───── */
+.search-row {
+  align-items: center;
+}
+.search-box {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1.5px solid var(--pink);
+  box-shadow: 0 0 0 3px rgba(255, 95, 174, 0.18);
+  color: var(--fuchsia);
+}
+.search-box svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.search-box input::placeholder {
+  color: var(--ink-soft);
+  font-weight: 600;
+  opacity: 0.8;
+}
+.search-box input::-webkit-search-cancel-button {
+  display: none;
+}
+.chip .count-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--fuchsia);
+  color: #fff;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+}
+.chip .worn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fuchsia);
+  box-shadow: 0 0 0 2px #fff;
+  margin-left: -2px;
+  animation: tickIn 0.35s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.chip.small {
+  font-size: 13px;
+  padding: 0 11px;
+}
+.color-chip .dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(80, 0, 60, 0.3);
+}
+.filter-panel {
+  padding: 2px 8px 10px;
+  margin: 0 0 8px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+}
+.filter-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px 2px 8px;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.filter-empty {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 14px 8px 6px;
+  text-align: center;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+.filter-empty > svg {
+  width: 40px;
+  height: 40px;
+  color: var(--pink);
+}
+.filter-empty p {
+  margin: 0 0 6px;
+}
+
+/* ───── Vestidor: microinteracciones al ponerse una prenda ───── */
+.card.fx-on {
+  animation: cardGlow 0.7s ease-out;
+}
+.card.fx-on .glyph-wrap {
+  animation: equipPop 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.card.fx-off .glyph-wrap {
+  animation: unequip 0.35s ease-out;
+}
+.card.fx-nope .glyph-wrap {
+  animation: nope 0.4s ease-in-out;
+}
+@keyframes cardGlow {
+  30% {
+    box-shadow: 0 0 0 5px rgba(255, 45, 138, 0.35), 0 0 22px rgba(255, 122, 200, 0.75);
+  }
+}
+@keyframes equipPop {
+  0% {
+    transform: scale(0.82) rotate(-6deg);
+  }
+  45% {
+    transform: scale(1.14) rotate(4deg) translateY(-4px);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes unequip {
+  40% {
+    transform: scale(0.86);
+    opacity: 0.6;
+  }
+}
+@keyframes nope {
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+.equip-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+}
+.equip-burst .ring {
+  grid-area: 1 / 1;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 3px solid var(--pink);
+  animation: ring 0.6s ease-out forwards;
+}
+.equip-burst .spark {
+  grid-area: 1 / 1;
+  width: 10px;
+  height: 10px;
+  background: linear-gradient(135deg, #fff6a8, #ff7ac8);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  animation: spark 0.65s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+@keyframes ring {
+  from {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+@keyframes spark {
+  from {
+    transform: rotate(var(--a)) translateY(-6px) scale(0.4);
+    opacity: 1;
+  }
+  to {
+    transform: rotate(var(--a)) translateY(-40px) scale(1.1);
+    opacity: 0;
+  }
+}
+.card .worn-tick {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #ff7ac8, #ff2d8a);
+  color: #fff;
+  box-shadow: 0 2px 5px rgba(255, 45, 138, 0.45);
+  animation: tickIn 0.4s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.card .worn-tick svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 3;
+}
+@keyframes tickIn {
+  from {
+    transform: scale(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-in,
+  .card.fx-on,
+  .card .glyph-wrap,
+  .card img.glyph,
+  .card .worn-tick,
+  .chip .worn-dot {
+    animation: none !important;
+  }
+  .equip-burst {
+    display: none;
   }
 }
