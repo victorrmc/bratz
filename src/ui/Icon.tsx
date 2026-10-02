@@ -31,6 +31,9 @@ export type IconName =
   | 'smile'
   | 'wink'
   | 'pout'
+  | 'grin'
+  | 'laugh'
+  | 'surprise'
   | 'download'
   | 'trash'
   | 'copy'
@@ -203,6 +206,25 @@ const P: Record<IconName, ReactElement> = {
     <>
       <circle cx="12" cy="12" r="8" />
       <path d="M8.5 10h.01M15.5 10h.01M10.5 15c1-.8 2-.8 3 0-1 .9-2 .9-3 0z" />
+    </>
+  ),
+  grin: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M8.5 10h.01M15.5 10h.01M8 13.5h8c-.6 2.6-2.2 3.6-4 3.6s-3.4-1-4-3.6zM8.6 15h6.8" />
+    </>
+  ),
+  laugh: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M7.8 10.2c.6-.9 1.6-.9 2.2 0M14 10.2c.6-.9 1.6-.9 2.2 0M8 13.2h8c-.5 3-2.2 4.2-4 4.2s-3.5-1.2-4-4.2z" />
+    </>
+  ),
+  surprise: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M8.5 9.5h.01M15.5 9.5h.01M7.8 7.2c.6-.5 1.4-.6 2-.3M16.2 7.2c-.6-.5-1.4-.6-2-.3" />
+      <ellipse cx="12" cy="15" rx="1.6" ry="2" />
     </>
   ),
   download: <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />,

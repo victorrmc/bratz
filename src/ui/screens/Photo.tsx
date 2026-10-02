@@ -5,6 +5,7 @@ import { STAGES, POSES } from '../../data/stages'
 import { STORY } from '../../data/story'
 import { Btn, IconBtn, Modal, TopBar, useInsetReporter } from '../kit'
 import { Icon } from '../Icon'
+import { expressionInfo, nextExpression } from '../expressions'
 import { interaction, useView } from '../../three/view'
 import { audio, buzz } from '../../audio/engine'
 
@@ -333,9 +334,9 @@ export default function PhotoScreen() {
               </button>
             ))}
           {panel === 'pose' && (
-            <button className="chip" onClick={() => setExpression(expression === 'sonrisa' ? 'guino' : expression === 'guino' ? 'seria' : 'sonrisa')} data-testid="photo-expression">
-              <Icon name={expression === 'sonrisa' ? 'smile' : expression === 'guino' ? 'wink' : 'pout'} />
-              {expression === 'sonrisa' ? 'Sonrisa' : expression === 'guino' ? 'Guiño' : 'Seria'}
+            <button className="chip" onClick={() => setExpression(nextExpression(expression))} data-testid="photo-expression">
+              <Icon name={expressionInfo(expression).icon} />
+              {expressionInfo(expression).label}
             </button>
           )}
           {panel === 'marco' &&

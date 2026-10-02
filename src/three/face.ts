@@ -12,7 +12,12 @@ export interface FaceOpts {
   expression: Expression
   closed: boolean
   res: number
+  /** Apertura de la boca (0–1) para animar la risa; por defecto 1. */
+  mouth?: number
 }
+
+/** Ojos cerrados «felices» (arcos hacia arriba) al reír. */
+const happyEyes = (o: FaceOpts) => o.expression === 'risa'
 
 type Ctx = CanvasRenderingContext2D
 
@@ -219,8 +224,9 @@ function drawUpperLashLine(ctx: Ctx, e: ReturnType<typeof eyePts>, s: number, o:
   ctx.lineWidth = closed ? 0.0016 : 0.0021
   ctx.beginPath()
   if (closed) {
+    const dip = happyEyes(o) ? 0.02 : 0
     ctx.moveTo(ix, iy + 0.001)
-    ctx.bezierCurveTo(ix + s * 0.01, e.cy - 0.0075, ox - s * 0.012, e.cy - 0.006, ox, oy - 0.001)
+    ctx.bezierCurveTo(ix + s * 0.01, e.cy - 0.0075 + dip, ox - s * 0.012, e.cy - 0.006 + dip, ox, oy - 0.001)
   } else upperLid(ctx, e, s)
   ctx.stroke()
 
@@ -261,7 +267,7 @@ function drawUpperLashLine(ctx: Ctx, e: ReturnType<typeof eyePts>, s: number, o:
   for (let i = 0; i < count; i++) {
     const t = 0.08 + (i / (count - 1)) * 0.92
     // punto sobre el párpado
-    const p = closed ? closedLidPoint(e, s, t) : bez(e, s, t)
+    const p = closed ? closedLidPoint(e, s, t, happyEyes(o) ? 0.02 : 0) : bez(e, s, t)
     const len = lenBase * (0.55 + 0.75 * t * t)
     const ang = (closed ? -Math.PI / 2 - s * (0.2 + 0.9 * t) : Math.PI / 2 - s * (0.25 + 1.0 * t * t)) as number
     ctx.lineWidth = 0.00095 * (1 - 0.3 * t) + (makeup.lashes === 'drama' ? 0.0003 : 0)
@@ -288,11 +294,11 @@ function bez(e: ReturnType<typeof eyePts>, s: number, t: number): [number, numbe
     u * u * u * iy + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * oy,
   ]
 }
-function closedLidPoint(e: ReturnType<typeof eyePts>, s: number, t: number): [number, number] {
+function closedLidPoint(e: ReturnType<typeof eyePts>, s: number, t: number, dip = 0): [number, number] {
   const [ix, iy] = e.inner
   const [ox, oy] = e.outer
-  const p1 = [ix + s * 0.01, e.cy - 0.0075]
-  const p2 = [ox - s * 0.012, e.cy - 0.006]
+  const p1 = [ix + s * 0.01, e.cy - 0.0075 + dip]
+  const p2 = [ox - s * 0.012, e.cy - 0.006 + dip]
   const u = 1 - t
   return [
     u * u * u * ix + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * ox,
@@ -338,16 +344,37 @@ function drawBrow(ctx: Ctx, s: number, o: FaceOpts, raise: number) {
   ctx.restore()
 }
 
+const BROW_RAISE: Record<Expression, number> = { sonrisa: 0.001, guino: 0, seria: 0, dientes: 0.0016, sorpresa: 0.0052, risa: 0.0024 }
+
+/** Forma de la boca según la expresión (`mouth` escala la apertura en la risa). */
+export function mouthShape(expression: Expression, mouth = 1) {
+  switch (expression) {
+    case 'sonrisa':
+      return { width: 1.06, smileL: 0.0045, smileR: 0.0045, open: 0.0032, teeth: 0.6, tongue: false }
+    case 'guino':
+      return { width: 1, smileL: 0.0042, smileR: 0.0005, open: 0, teeth: 0, tongue: false }
+    case 'dientes':
+      return { width: 1.13, smileL: 0.0068, smileR: 0.0068, open: 0.009, teeth: 0.78, tongue: false }
+    case 'sorpresa':
+      return { width: 0.6, smileL: -0.001, smileR: -0.001, open: 0.0125, teeth: 0.2, tongue: false }
+    case 'risa':
+      return { width: 1.12, smileL: 0.0066, smileR: 0.0066, open: 0.0155 * mouth, teeth: 0.36, tongue: true }
+    default:
+      return { width: 0.94, smileL: 0, smileR: 0, open: 0, teeth: 0, tongue: false }
+  }
+}
+
 function drawLips(ctx: Ctx, o: FaceOpts) {
   const { makeup, doll, expression } = o
   const L = doll.face.lipFullness
-  const hw = 0.025 * Math.pow(L, 0.5) * (expression === 'seria' ? 0.94 : expression === 'sonrisa' ? 1.06 : 1)
+  const m = mouthShape(expression, o.mouth ?? 1)
+  const hw = 0.025 * Math.pow(L, 0.5) * m.width
   const cy = -0.0752
   const up = 0.0098 * L
   const lo = 0.0128 * L
-  const smileL = expression === 'sonrisa' ? 0.0045 : expression === 'guino' ? 0.0042 : 0.0
-  const smileR = expression === 'sonrisa' ? 0.0045 : expression === 'guino' ? 0.0005 : 0.0
-  const open = expression === 'sonrisa' ? 0.0032 : 0
+  const smileL = m.smileL
+  const smileR = m.smileR
+  const open = m.open
   const lipBase = mixHex(doll.skinShade, '#c46a6a', 0.55)
   const col = mixHex(lipBase, makeup.lips, makeup.lipAmt)
 
@@ -373,8 +400,10 @@ function drawLips(ctx: Ctx, o: FaceOpts) {
     ctx.moveTo(lx, ly)
     ctx.bezierCurveTo(lx + 0.008, cy - open - 0.0008, -0.006, cy - open - 0.0006, 0, cy - open - 0.0004)
     ctx.bezierCurveTo(0.006, cy - open - 0.0006, rx - 0.008, cy - open - 0.0008, rx, ry)
-    ctx.bezierCurveTo(rx - 0.004, cy - lo * 0.7, 0.012, cy - lo * 1.1, 0, cy - lo * 1.1)
-    ctx.bezierCurveTo(-0.012, cy - lo * 1.1, lx + 0.004, cy - lo * 0.7, lx, ly)
+    // con la boca muy abierta el labio inferior baja con ella
+    const bot = Math.max(lo * 1.1, open + lo * 0.75)
+    ctx.bezierCurveTo(rx - 0.004, cy - bot * 0.64, 0.012, cy - bot, 0, cy - bot)
+    ctx.bezierCurveTo(-0.012, cy - bot, lx + 0.004, cy - bot * 0.64, lx, ly)
     ctx.closePath()
   }
 
@@ -387,19 +416,46 @@ function drawLips(ctx: Ctx, o: FaceOpts) {
   ctx.fillRect(-0.03, cy - 0.03, 0.06, 0.02)
 
   if (open > 0) {
-    // boca abierta: dientes
+    // boca abierta: interior, lengua y dientes
+    const inner = () => {
+      ctx.beginPath()
+      ctx.moveTo(lx + 0.002, ly)
+      ctx.bezierCurveTo(-0.01, cy + 0.0015, 0.01, cy + 0.0015, rx - 0.002, ry)
+      ctx.bezierCurveTo(0.01, cy - open * 1.4, -0.01, cy - open * 1.4, lx + 0.002, ly)
+    }
+    ctx.save()
+    inner()
     ctx.fillStyle = '#5a1f2c'
-    ctx.beginPath()
-    ctx.moveTo(lx + 0.002, ly)
-    ctx.bezierCurveTo(-0.01, cy + 0.0015, 0.01, cy + 0.0015, rx - 0.002, ry)
-    ctx.bezierCurveTo(0.01, cy - open * 1.4, -0.01, cy - open * 1.4, lx + 0.002, ly)
     ctx.fill()
+    ctx.clip()
+    if (m.tongue) {
+      ctx.fillStyle = '#d86a7a'
+      ctx.beginPath()
+      ctx.ellipse(0, cy - open * 1.15, hw * 0.55, open * 0.45, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    // dientes superiores (más visibles en la sonrisa con dientes)
+    const th = open * m.teeth
     ctx.fillStyle = '#fbf7f4'
     ctx.beginPath()
-    ctx.moveTo(lx + 0.004, ly - 0.0002)
-    ctx.bezierCurveTo(-0.01, cy + 0.0012, 0.01, cy + 0.0012, rx - 0.004, ry - 0.0002)
-    ctx.bezierCurveTo(0.01, cy - open * 0.6, -0.01, cy - open * 0.6, lx + 0.004, ly - 0.0002)
+    ctx.moveTo(lx + 0.003, ly + 0.002)
+    ctx.bezierCurveTo(-0.01, cy + 0.003, 0.01, cy + 0.003, rx - 0.003, ry + 0.002)
+    ctx.lineTo(rx - 0.003, ry - th * 0.35)
+    ctx.bezierCurveTo(0.01, cy - th, -0.01, cy - th, lx + 0.003, ly - th * 0.35)
+    ctx.closePath()
     ctx.fill()
+    if (m.teeth > 0.7) {
+      // separación sutil entre dientes
+      ctx.strokeStyle = 'rgba(150,120,125,0.35)'
+      ctx.lineWidth = 0.0003
+      for (const x of [-0.0105, -0.0055, 0, 0.0055, 0.0105]) {
+        ctx.beginPath()
+        ctx.moveTo(x, cy + 0.001)
+        ctx.lineTo(x, cy - th * 0.85)
+        ctx.stroke()
+      }
+    }
+    ctx.restore()
   }
 
   for (const [path, isUpper] of [
@@ -695,14 +751,14 @@ export function paintFace(o: FaceOpts): { color: HTMLCanvasElement; rm: HTMLCanv
   // Ojos
   const wink = expression === 'guino'
   for (const s of [-1, 1]) {
-    const e = eyePts(s, doll.face.eyeSize)
+    const e = eyePts(s, doll.face.eyeSize * (expression === 'sorpresa' ? 1.07 : 1))
     drawEyeshadow(ctx, e, s, makeup)
-    const closed = o.closed || (wink && s === 1)
+    const closed = o.closed || (wink && s === 1) || happyEyes(o)
     if (closed) drawClosedEye(ctx, e, s, o)
     else drawOpenEye(ctx, e, s, o)
   }
   // Cejas
-  for (const s of [-1, 1]) drawBrow(ctx, s, o, expression === 'guino' && s === 1 ? -0.002 : expression === 'sonrisa' ? 0.001 : 0)
+  for (const s of [-1, 1]) drawBrow(ctx, s, o, expression === 'guino' && s === 1 ? -0.002 : BROW_RAISE[expression])
 
   drawLips(ctx, o)
   drawGems(ctx, o)
@@ -724,8 +780,8 @@ export function paintFace(o: FaceOpts): { color: HTMLCanvasElement; rm: HTMLCanv
   if (!o.closed) {
     r.fillStyle = 'rgb(255,25,0)'
     for (const s of [-1, 1]) {
-      if (wink && s === 1) continue
-      const e = eyePts(s, doll.face.eyeSize)
+      if ((wink && s === 1) || happyEyes(o)) continue
+      const e = eyePts(s, doll.face.eyeSize * (expression === 'sorpresa' ? 1.07 : 1))
       almond(r, e, s)
       r.fill()
     }
