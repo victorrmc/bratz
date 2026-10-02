@@ -69,7 +69,7 @@ No usa backend ni recursos externos en tiempo de ejecución. Todo, incluidas las
    - Cámaras predefinidas: cuerpo, cara, manos y pies.
    - Botón «Sorpréndeme» para un look aleatorio y guardado de looks.
 2. **Sesión de fotos:**
-   - Siete escenarios: discoteca de neón, centro comercial, playa al atardecer, alfombra roja con flashes, habitación Y2K, Ibiza al atardecer y el secreto **Nuestra casa en Ibiza**.
+   - Ocho escenarios: discoteca de neón, centro comercial, playa al atardecer, alfombra roja con flashes, habitación Y2K, Ibiza al atardecer, Ferry a Ibiza y el secreto **Nuestra casa en Ibiza**. Todos tienen movimiento propio (olas, neón, viento, puesta de sol…).
    - Ocho poses, expresión, cinco marcos y ocho pegatinas arrastrables.
    - Disparo con flash y sonido, y descarga en PNG de 1080×1440.
 3. **Retos de estilo:**
@@ -173,6 +173,71 @@ Detalle completo, con criterios y problemas de cada captura, en [`docs/visual-re
   - El workflow `.github/workflows/deploy.yml` ya está listo. Se despliega solo al hacer push a `main` en cuanto Pages esté activado con «Source: GitHub Actions».
 - **Textos de la carta provisionales:** el texto de la carta, la fecha («Próxima parada: Ibiza ✈ 2026») y la firma están en `src/data/story.ts` como borrador, a falta del texto definitivo.
 - **Audio:** los navegadores exigen un gesto del usuario antes de sonar, por eso la música empieza tras «Toca para empezar».
+
+## Tarea 4 · Escenarios vivos
+
+Cada escenario de la sesión de fotos (y de los fondos del jurado y la carta) tiene ahora movimiento propio y más ambiente, y hay un escenario nuevo: **«Ferry a Ibiza»**. Todo es procedural: shaders propios y texturas pintadas en canvas, sin ningún recurso externo.
+
+### Movimiento
+
+| Escenario | Qué se mueve |
+|---|---|
+| Playa al atardecer | Mar con oleaje: mar de fondo desplazado en vértices y olas pequeñas en el sombreado, con reflejo del cielo y destellos del sol. En la orilla, las olas rompen, suben por la arena con una línea de espuma, se retiran y dejan la arena mojada (ciclo de 7 s, dos olas desfasadas). |
+| Discoteca neón | Los tres tubos de neón zumban y, cada unos 7 s y desfasados entre sí, fallan con apagones rápidos como un neón de verdad. |
+| Nuestra casa en Ibiza | Las buganvillas se mecen con el viento (oscilación por flor en el shader, con rachas) y caen pétalos en diagonal. Se añaden dos cascadas de flores en las esquinas de la pared, dentro del encuadre de la foto. |
+| Ibiza al atardecer | El sol baja despacio de 7° a −5° en 70 s, enrojece al acercarse al horizonte y se hunde en el mar. El cielo vira hacia los tonos del anochecer y el camino de luz sobre el agua sigue al sol. Después reaparece arriba con un fundido. El ciclo empieza al entrar en el escenario, así que siempre se llega con el sol alto. |
+| Ferry a Ibiza | El mar corre bajo el barco con la estela de espuma pegada al casco, el mundo exterior cabecea respecto a la cubierta, los banderines ondean y las gaviotas planean. |
+
+### Ambiente
+
+- **Cielos degradados** (`AmbientSky` en `src/three/env.tsx`): tres tonos con halo de sol y nubes alargadas procedurales que derivan muy despacio cerca del horizonte. Con `sunRef` el halo sigue al sol y el degradado se mezcla con una paleta de anochecer.
+- **Niebla** en la playa, Ibiza, Nuestra casa, la alfombra roja y el ferry. Funde Es Vedrà y la isla con el horizonte. El sol, el cielo y el mar quedan fuera de la niebla para no apagarse.
+- **Partículas** (`AmbientParticles`): se animan por completo en la GPU, sin coste de CPU por partícula.
+  - **Polvo de luz** en todos los escenarios de interior y en los haces de la discoteca.
+  - **Luciérnagas** en Ibiza y en Nuestra casa.
+  - **Chispas** (sal y destellos del sol) en la playa y el ferry.
+  - En calidad baja se usa la mitad.
+- Todo lo aleatorio usa una semilla fija (`seeded`), así que los escenarios salen siempre iguales.
+
+### Escenario nuevo: «Ferry a Ibiza»
+
+- **Cubierta y barco:** cubierta de teca con juntas de calafateo y una barandilla blanca con pasamanos de madera. Hay un salvavidas, dos mástiles con banderines y una cabina con ojos de buey.
+- **Las maletas:** dos maletas, rosa y azul, porque nos mudamos.
+- **El fondo:** detrás, el mar abierto con la estela y, al fondo, Ibiza: sierra con capas de bruma, casitas blancas en la ladera y Dalt Vila. Se ve también un islote.
+- **Dónde aparece:** en la lista de escenarios de la sesión de fotos, después de «Ibiza al atardecer». No es secreto.
+
+### Antes y después
+
+| | Antes | Después |
+|---|---|---|
+| Playa | ![](docs/screenshots/escenarios-vivos/antes/beach.png) | ![](docs/screenshots/escenarios-vivos/despues/beach.png) |
+| Ibiza | ![](docs/screenshots/escenarios-vivos/antes/ibiza.png) | ![](docs/screenshots/escenarios-vivos/despues/ibiza.png) |
+| Nuestra casa | ![](docs/screenshots/escenarios-vivos/antes/casa.png) | ![](docs/screenshots/escenarios-vivos/despues/casa.png) |
+| Ferry (nuevo) | — | ![](docs/screenshots/escenarios-vivos/despues/ferry.png) |
+
+La puesta de sol en Ibiza, a los 5 s, 35 s y 56 s de entrar en el escenario:
+
+| | | |
+|---|---|---|
+| ![](docs/screenshots/escenarios-vivos/despues/ibiza-sol-1.png) | ![](docs/screenshots/escenarios-vivos/despues/ibiza-sol-2.png) | ![](docs/screenshots/escenarios-vivos/despues/ibiza-sol-3.png) |
+
+Las capturas de todos los escenarios están en `docs/screenshots/escenarios-vivos/antes/` y `docs/screenshots/escenarios-vivos/despues/`. Se regeneran con `node scripts/screenshots-escenarios.mjs <antes|despues>`, con `npx vite preview --port 4173` en marcha.
+
+### Pruebas
+
+- **Nuevo archivo `tests/e2e/escenarios-vivos.spec.ts`:**
+  - El ferry aparece con su nombre, se elige y saca una foto PNG válida.
+  - En playa, discoteca, Ibiza, ferry y Nuestra casa, una franja del fondo lejos de la muñeca cambia entre dos capturas separadas 1,8 s, es decir, el escenario se mueve.
+  - Todo con cero errores de consola, en los tres viewports.
+- **Test unitario del catálogo:** ahora espera 7 escenarios no secretos en lugar de 6. Es el único cambio en un archivo de test existente.
+- **Resultados:** `npm test` 35/35 en verde, `npm run build` sin errores y los E2E nuevos 6/6 en verde (2 tests × 3 viewports). Batería E2E completa: pendiente de terminar.
+- **Carga inicial:** sin cambios, unos 138 kB gzip (JS de entrada y CSS). El código de escenarios va en su propio trozo diferido, que pasa de 4,6 a 11,7 kB gzip.
+- **Guardado:** no se toca, y `SAVE_VERSION` sigue igual.
+
+### Limitaciones
+
+- **Rendimiento sin medir en móvil real:** el oleaje y la espuma se calculan por píxel. En SwiftShader los escenarios se mueven con fluidez en calidad baja, pero no he medido los FPS en un móvil real. En calidad baja la malla del mar tiene menos segmentos y hay la mitad de partículas.
+- **Hueco del sol en Ibiza:** durante unos 10 s de cada ciclo de 70 s el sol está bajo el horizonte. Si se dispara la foto justo entonces, sale el cielo del anochecer sin sol.
 
 ## Cómo añadir prendas nuevas
 

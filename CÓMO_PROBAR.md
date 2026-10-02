@@ -9,7 +9,7 @@
    - Pellizca para hacer zoom.
    - Pestañas **Pelo**, **Maquillaje** y **Uñas**.
    - Pulsa el dado para un look sorpresa y guárdalo con **Guardar look**.
-4. **Fotos** (1 min): cambia de escenario (incluida *Ibiza al atardecer*), elige una pose, un marco y pegatinas, y pulsa el botón redondo. Descarga el PNG.
+4. **Fotos** (1 min): cambia de escenario (incluidos *Ibiza al atardecer*, con el sol que baja, y el nuevo *Ferry a Ibiza*), elige una pose, un marco y pegatinas, y pulsa el botón redondo. Descarga el PNG.
 5. **Retos** (1 min): elige uno, vístete y pulsa **Presentar al jurado**. Mira las estrellas, los comentarios y las monedas.
 6. **Tienda**: con las monedas iniciales puedes comprar el *Top de crochet ibicenco* (55).
 7. **Pasarela**: Clara desfila con el look actual.
