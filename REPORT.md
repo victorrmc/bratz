@@ -169,7 +169,10 @@ Las capturas están en `docs/screenshots/pelo/`: `antes/` y `despues/`. Se gener
   - que las trenzas se muevan al caminar por la pasarela.
   
   Para eso, `window.__claraHair` expone el número de cadenas y el balanceo.
-- RESULTADOS_E2E
+- **Resultados:**
+  - `npm test`: 38/38 (35 que ya había y 3 nuevas).
+  - `npm run e2e`: **33/33** (24 que ya había y 9 nuevas), sin errores de consola.
+  - `npm run build`: correcto.
 - **Carga inicial:** sin cambios, unos 139 kB gzip. El código del pelo va en el trozo 3D, que pasa de unos 279 a unos 284 kB gzip.
 
 ### Límites
