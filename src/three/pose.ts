@@ -235,18 +235,23 @@ export function getPose(id: string): Pose {
   return (POSE_BUILDERS[id] ?? POSE_BUILDERS.idle)()
 }
 
-/** Ciclo de paseo de pasarela (t en ciclos). */
-export function walkPose(t: number, out: Pose): Pose {
+/**
+ * Ciclo de paseo de pasarela (t en ciclos). `stride` (0–1) escala la zancada:
+ * con valores bajos son pasitos en el sitio (para girar).
+ */
+export function walkPose(t: number, out: Pose, stride = 1): Pose {
   const ph = t * Math.PI * 2
-  const s = Math.sin(ph)
+  const s = Math.sin(ph) * stride
   const c = Math.cos(ph)
   out.hips.setFromEuler(new THREE.Euler(0.03, s * 0.12, -s * 0.06))
   out.rootX = -s * 0.015
-  out.rootY = -Math.abs(c) * 0.014 + 0.004
-  const swing = 0.42
+  out.rootY = -Math.abs(c) * 0.014 * stride + 0.004
+  const swing = 0.3
   // pierna izquierda adelante cuando s>0
-  const lk = Math.max(0, -Math.sin(ph + 0.9)) * 0.75 + 0.05
-  const rk = Math.max(0, Math.sin(ph + 0.9)) * 0.75 + 0.05
+  // la rodilla se flexiona al despegar el pie (aunque la zancada sea corta)
+  const lift = 0.35 + 0.65 * stride
+  const lk = Math.max(0, -Math.sin(ph + 0.9)) * 0.75 * lift + 0.05
+  const rk = Math.max(0, Math.sin(ph + 0.9)) * 0.75 * lift + 0.05
   out.hipL.setFromEuler(new THREE.Euler(-s * swing, 0, -0.04 + s * 0.02))
   out.hipR.setFromEuler(new THREE.Euler(s * swing, 0, 0.04 + s * 0.02))
   out.kneeL.setFromEuler(new THREE.Euler(lk, 0, 0))
@@ -280,4 +285,178 @@ export function blendPose(cur: Pose, target: Pose, k: number) {
   cur.rootY += (target.rootY - cur.rootY) * k
   cur.curlL += (target.curlL - cur.curlL) * k
   cur.curlR += (target.curlR - cur.curlR) * k
+}
+
+// ─────────────── Transiciones con anticipación y asentamiento ───────────────
+
+const ANTIC_END = 0.2
+const MAIN_END = 0.66
+const ANTIC = 0.08
+const OVERSHOOT = 0.07
+
+/**
+ * Curva de transición (t de 0 a 1): retrocede un poco al principio
+ * (anticipación), pasa algo de largo (sobrepaso) y se asienta con un
+ * pequeño rebote amortiguado. Empieza en 0 y termina en 1.
+ */
+export function transitionCurve(t: number): number {
+  if (t <= 0) return 0
+  if (t >= 1) return 1
+  if (t < ANTIC_END) {
+    const u = Math.sin((t / ANTIC_END) * Math.PI * 0.5)
+    return -ANTIC * u * u
+  }
+  if (t < MAIN_END) {
+    const u = (t - ANTIC_END) / (MAIN_END - ANTIC_END)
+    const k = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2
+    return -ANTIC + (1 + OVERSHOOT + ANTIC) * k
+  }
+  const u = (t - MAIN_END) / (1 - MAIN_END)
+  return 1 + OVERSHOOT * Math.cos(u * Math.PI * 2.5) * (1 - u) * (1 - u)
+}
+
+/** Duración base de una transición entre poses (s). */
+export const TRANSITION_TIME = 0.8
+
+/**
+ * Retraso de cada articulación (s): las caderas inician el movimiento y
+ * cabeza, brazos y manos lo siguen (acción superpuesta).
+ */
+export const JOINT_DELAY: Record<JointName, number> = {
+  hips: 0,
+  hipL: 0,
+  hipR: 0,
+  kneeL: 0.02,
+  kneeR: 0.02,
+  ankleL: 0.03,
+  ankleR: 0.03,
+  neck: 0.05,
+  head: 0.1,
+  shoulderL: 0.05,
+  shoulderR: 0.05,
+  elbowL: 0.09,
+  elbowR: 0.09,
+  wristL: 0.13,
+  wristR: 0.13,
+}
+const MAX_DELAY = 0.13
+export const TRANSITION_TOTAL = TRANSITION_TIME + MAX_DELAY
+
+/** Pose intermedia de la transición `from` → `to` en el instante `time` (s). */
+export function transitionPose(from: Pose, to: Pose, time: number, out: Pose): Pose {
+  for (const j of JOINTS) {
+    const k = transitionCurve((time - JOINT_DELAY[j]) / TRANSITION_TIME)
+    out[j].copy(from[j]).slerp(to[j], k)
+  }
+  const k = transitionCurve(time / TRANSITION_TIME)
+  const kh = transitionCurve((time - MAX_DELAY) / TRANSITION_TIME)
+  out.rootX = from.rootX + (to.rootX - from.rootX) * k
+  // pequeña flexión de rodillas al coger impulso (el IK de pies la convierte en flexión)
+  const dip = Math.sin(Math.min(1, Math.max(0, time / (TRANSITION_TIME * 0.55))) * Math.PI) * 0.012
+  out.rootY = from.rootY + (to.rootY - from.rootY) * k - dip
+  out.curlL = from.curlL + (to.curlL - from.curlL) * Math.min(1, Math.max(0, kh))
+  out.curlR = from.curlR + (to.curlR - from.curlR) * Math.min(1, Math.max(0, kh))
+  return out
+}
+
+// ─────────────── Reacciones: aplauso y saltito ───────────────
+
+export type ReactionKind = 'euforia' | 'alegria' | 'aplauso' | 'sorpresa'
+
+export interface Reaction {
+  kind: ReactionKind
+  expression: 'risa' | 'dientes' | 'sonrisa' | 'sorpresa'
+  /** número de saltitos */
+  hops: number
+  clap: boolean
+  duration: number
+}
+
+/** Reacción de la muñeca según las estrellas del jurado (1–5). */
+export function reactionFor(stars: number): Reaction {
+  if (stars >= 5) return { kind: 'euforia', expression: 'risa', hops: 2, clap: true, duration: 2.6 }
+  if (stars >= 4) return { kind: 'alegria', expression: 'dientes', hops: 1, clap: true, duration: 2.2 }
+  if (stars >= 3) return { kind: 'aplauso', expression: 'sonrisa', hops: 0, clap: true, duration: 1.8 }
+  return { kind: 'sorpresa', expression: 'sorpresa', hops: 0, clap: false, duration: 1.8 }
+}
+
+export const HOP_TIME = 0.7
+const HOP_HEIGHT = 0.085
+
+/**
+ * Altura del saltito (t en s desde su inicio): se agacha para coger impulso,
+ * vuela en parábola y amortigua al caer. `air` indica si los pies despegan.
+ */
+export function hopOffset(t: number): { y: number; air: boolean } {
+  const u = t / HOP_TIME
+  if (u <= 0 || u >= 1) return { y: 0, air: false }
+  if (u < 0.22) return { y: -0.032 * Math.sin((u / 0.22) * Math.PI * 0.5), air: false }
+  if (u < 0.68) {
+    const a = (u - 0.22) / 0.46
+    const y = -0.032 * Math.pow(1 - a, 3) + HOP_HEIGHT * 4 * a * (1 - a)
+    return { y, air: y > 0.004 }
+  }
+  const a = (u - 0.68) / 0.32
+  return { y: -0.026 * Math.sin(a * Math.PI), air: false }
+}
+
+const clapR = new THREE.Vector3()
+const clapL = new THREE.Vector3()
+/**
+ * Pose de aplauso (t en s): manos delante del pecho que se juntan y se
+ * separan unas tres veces por segundo.
+ */
+export function clapPose(t: number, out: Pose): Pose {
+  const open = 0.5 + 0.5 * Math.cos(t * Math.PI * 2 * 3.2)
+  const gap = 0.004 + 0.085 * open
+  clapL.set(0.035 + gap, 1.11 + 0.01 * open, 0.2)
+  clapR.set(-0.035 - gap, 1.11 + 0.01 * open, 0.2)
+  const l = armIK(1, clapL, new THREE.Vector3(1, -0.7, -0.4))
+  const r = armIK(-1, clapR, new THREE.Vector3(-1, -0.7, -0.4))
+  out.shoulderL.copy(l.shoulder)
+  out.elbowL.copy(l.elbow)
+  out.shoulderR.copy(r.shoulder)
+  out.elbowR.copy(r.elbow)
+  out.wristL.setFromEuler(new THREE.Euler(0, -0.9, 1.2))
+  out.wristR.setFromEuler(new THREE.Euler(0, 0.9, -1.2))
+  out.curlL = 0
+  out.curlR = 0
+  return out
+}
+
+/** Encogerse de hombros con las palmas hacia fuera (reacción de sorpresa). */
+export function shrugPose(out: Pose): Pose {
+  ik(out, 1, [0.3, 0.98, 0.14], [1, -0.2, -1], [0, -0.8, -0.6])
+  ik(out, -1, [-0.3, 0.98, 0.14], [-1, -0.2, -1], [0, 0.8, 0.6])
+  out.curlL = 0
+  out.curlR = 0
+  out.neck = e(-0.06, 0, 0)
+  out.head = e(-0.12, 0, 0.08)
+  return out
+}
+
+/**
+ * Pose de la reacción en el instante t (s): parte de `base` y añade
+ * aplauso, saltitos o encogimiento. Devuelve también la altura extra.
+ */
+export function reactionPose(r: Reaction, t: number, base: Pose, out: Pose): { lift: number; air: boolean } {
+  copyPose(base, out)
+  let lift = 0
+  let air = false
+  for (let i = 0; i < r.hops; i++) {
+    const h = hopOffset(t - 0.15 - i * HOP_TIME)
+    lift += h.y
+    air ||= h.air
+  }
+  if (r.clap) clapPose(t, out)
+  else if (r.kind === 'sorpresa') shrugPose(out)
+  if (air) {
+    // en el aire los pies se recogen un poco
+    out.kneeL.setFromEuler(new THREE.Euler(0.35, 0, 0))
+    out.kneeR.setFromEuler(new THREE.Euler(0.35, 0, 0))
+    out.ankleL.setFromEuler(new THREE.Euler(0.25, 0, 0))
+    out.ankleR.setFromEuler(new THREE.Euler(0.25, 0, 0))
+  }
+  if (r.kind === 'euforia') out.head.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.08 - 0.04 * Math.abs(Math.sin(t * 9)), 0, 0)))
+  return { lift, air }
 }
