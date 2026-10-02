@@ -253,10 +253,10 @@ function curtain(length: number, style: 'straight' | 'wavy' | 'curly' | 'bob'): 
 
 function curls(length: number): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = []
-  const n = 22
+  const n = 30
   for (let i = 0; i < n; i++) {
     const s = (i / (n - 1) - 0.5) * 2
-    const phi = s * 1.9
+    const phi = s * 2.05
     const top = HC.y + 0.02 - Math.abs(s) * 0.03
     const yEnd = top - 0.15 - length * (0.85 + 0.15 * Math.cos(i * 1.7))
     const pts: [number, number, number][] = []
@@ -270,11 +270,11 @@ function curls(length: number): THREE.BufferGeometry {
       const ph = phi * (0.62 + 0.38 * hz)
       const cx = Math.sin(ph) * ax
       const cz = -Math.cos(ph) * az + HC.z * hz
-      const ang = t * 14 + i
-      const rr = 0.013 * (0.6 + t * 0.6)
+      const ang = t * 13 + i
+      const rr = 0.019 * (0.7 + t * 0.5)
       pts.push([cx + Math.cos(ang) * rr, y, cz + Math.sin(ang) * rr])
     }
-    parts.push(tSweep(curveOf(pts), (t) => 0.0105 * (1 - 0.5 * t), { radial: 10, segments: 90 }))
+    parts.push(tSweep(curveOf(pts), (t) => 0.0135 * (1 - 0.45 * t), { radial: 10, segments: 90 }))
   }
   // volumen superior (coronilla rizada)
   for (let i = 0; i < 9; i++) {

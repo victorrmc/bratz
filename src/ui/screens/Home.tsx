@@ -67,12 +67,12 @@ export default function HomeScreen() {
               setSecretOpen(true)
             }
           }}
-          whileTap={{ scale: 1.5 }}
-          animate={{ scale: [1, 1.12, 1] }}
-          transition={{ repeat: Infinity, duration: 1.6 }}
+          whileTap={{ scale: 1.4 }}
           style={{ marginTop: 4, width: 44, height: 44, display: 'inline-grid', placeItems: 'center', color: taps > 0 ? '#ff2d8a' : 'rgba(255,255,255,.85)' }}
         >
-          <Icon name="heart" width={22} height={22} fill="currentColor" stroke="none" />
+          <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ repeat: Infinity, duration: 1.6 }} style={{ display: 'grid' }}>
+            <Icon name="heart" width={22} height={22} fill="currentColor" stroke="none" />
+          </motion.span>
         </motion.button>
       </motion.header>
       <div style={{ flex: 1 }} />

@@ -5,6 +5,7 @@ import { useView } from './three/view'
 import { audio } from './audio/engine'
 import { Toasts } from './ui/kit'
 import Loading from './ui/Loading'
+import Splash from './ui/Splash'
 import { interaction } from './three/view'
 
 // Acceso para pruebas automáticas y depuración
@@ -123,9 +124,21 @@ function ScreenRouter() {
 
 export default function App() {
   const [webgl] = useState(hasWebGL)
+  const [started, setStarted] = useState(false)
   const ready = useView((s) => s.ready)
   useAudioDirector()
   if (!webgl) return <NoWebGL />
+  if (!started)
+    return (
+      <Splash
+        onStart={() => {
+          audio.unlock()
+          audio.click()
+          useGame.getState().setAudioReady()
+          setStarted(true)
+        }}
+      />
+    )
   return (
     <>
       <Suspense fallback={null}>

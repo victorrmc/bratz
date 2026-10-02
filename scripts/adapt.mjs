@@ -3,6 +3,7 @@ const [, , q = '', throttle = '1'] = process.argv
 const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
 const p = await b.newPage({ viewport: { width: 390, height: 844 } })
 await p.goto('http://localhost:4173/bratz/?' + q)
+await p.getByTestId('start').click()
 await p.waitForSelector('[data-screen]', { timeout: 90000 })
 const cdp = await p.context().newCDPSession(p)
 await cdp.send('Emulation.setCPUThrottlingRate', { rate: +throttle })

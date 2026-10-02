@@ -613,6 +613,25 @@ export function paintFace(o: FaceOpts): { color: HTMLCanvasElement; rm: HTMLCanv
     ctx.fillRect(-0.15, -0.2, 0.3, 0.4)
   }
 
+  // Volumen: cuencas de los ojos, sienes y mandíbula
+  for (const sd of [-1, 1]) {
+    const so = ctx.createRadialGradient(sd * 0.03, 0.012, 0.002, sd * 0.034, 0.012, 0.03)
+    so.addColorStop(0, rgba(doll.skinShade, 0.22))
+    so.addColorStop(1, rgba(doll.skinShade, 0))
+    ctx.fillStyle = so
+    ctx.fillRect(-0.15, -0.2, 0.3, 0.4)
+    const jw = ctx.createRadialGradient(sd * 0.1, -0.095, 0.005, sd * 0.1, -0.095, 0.05)
+    jw.addColorStop(0, rgba(doll.skinShade, 0.32))
+    jw.addColorStop(1, rgba(doll.skinShade, 0))
+    ctx.fillStyle = jw
+    ctx.fillRect(-0.15, -0.2, 0.3, 0.4)
+  }
+  const chin = ctx.createRadialGradient(0, -0.128, 0.004, 0, -0.128, 0.04)
+  chin.addColorStop(0, rgba(mixHex(doll.skin, '#ffffff', 0.25), 0.4))
+  chin.addColorStop(1, rgba(doll.skin, 0))
+  ctx.fillStyle = chin
+  ctx.fillRect(-0.15, -0.2, 0.3, 0.4)
+
   // Colorete
   if (makeup.blushAmt > 0.01) {
     for (const s of [-1, 1]) {

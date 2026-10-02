@@ -18,6 +18,35 @@ export default function StudioScene({ quality }: { quality: string }) {
     for (let i = 1; i < 4; i++) pts.push([-2.05 + i * 0.275, 2.15, -1.7])
     return pts
   }, [])
+  const archBulbs = useMemo(() => {
+    const pts: [number, number, number][] = []
+    for (let i = 0; i <= 26; i++) {
+      const a = Math.PI * (i / 26)
+      pts.push([Math.cos(a) * 1.15, 1.05 + Math.sin(a) * 1.15, -1.05])
+    }
+    for (let i = 1; i <= 5; i++) {
+      pts.push([1.15, 1.05 - i * 0.2, -1.05])
+      pts.push([-1.15, 1.05 - i * 0.2, -1.05])
+    }
+    return pts
+  }, [])
+  const archGeo = useMemo(() => {
+    const pts: THREE.Vector3[] = []
+    pts.push(new THREE.Vector3(1.15, 0, -1.08))
+    for (let i = 0; i <= 40; i++) {
+      const a = Math.PI * (i / 40)
+      pts.push(new THREE.Vector3(Math.cos(a) * 1.15, 1.05 + Math.sin(a) * 1.15, -1.08))
+    }
+    pts.push(new THREE.Vector3(-1.15, 0, -1.08))
+    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.05), 120, 0.05, 10, false)
+  }, [])
+  const curtain = useMemo(() => {
+    const g = new THREE.PlaneGeometry(1.1, 3.4, 40, 1)
+    const p = g.getAttribute('position') as THREE.BufferAttribute
+    for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin(p.getX(i) * 18) * 0.05)
+    g.computeVertexNormals()
+    return g
+  }, [])
   const frame = useMemo(() => {
     const outer = roundedRectShape(1.25, 1.85, 0.12)
     outer.holes.push(roundedRectShape(1.0, 1.6, 0.08))
@@ -25,8 +54,8 @@ export default function StudioScene({ quality }: { quality: string }) {
   }, [])
   return (
     <>
-      <GlamEnvironment tint="#ffc2e2" accent="#c9b6ff" intensity={0.85} />
-      <ThreePointLights shadows={quality === 'alta'} />
+      <GlamEnvironment tint="#ffc2e2" accent="#c9b6ff" intensity={0.6} />
+      <ThreePointLights shadows={quality === 'alta'} k={0.85} />
       <GradientSky top="#e9d6ff" mid="#ffd3ec" bottom="#f7b6d9" />
       <fog attach="fog" args={['#f9cfe6', 6, 16]} />
       {/* ciclorama */}
@@ -35,7 +64,26 @@ export default function StudioScene({ quality }: { quality: string }) {
         {quality === 'baja' ? <meshLambertMaterial color="#ffd6ec" side={THREE.BackSide} /> : <meshStandardMaterial color="#ffd6ec" side={THREE.BackSide} roughness={0.9} />}
       </mesh>
       <GlossyFloor color="#f7bfe0" quality={quality} />
-      <Podium color="#ffc6e6" radius={0.55} />
+      {/* arco de camerino con bombillas */}
+      <mesh geometry={archGeo}>
+        <meshPhysicalMaterial color="#f1c86a" metalness={1} roughness={0.22} />
+      </mesh>
+      <Bulbs points={archBulbs} color="#fff0d6" size={0.03} intensity={2.4} />
+      {/* fondo del arco: satén con brillo */}
+      <mesh position={[0, 1.05, -1.12]}>
+        <circleGeometry args={[1.12, 48, 0, Math.PI]} />
+        <meshStandardMaterial color="#ff9fd0" roughness={0.5} metalness={0.15} />
+      </mesh>
+      <mesh position={[0, 0.525, -1.12]}>
+        <planeGeometry args={[2.24, 1.05]} />
+        <meshStandardMaterial color="#ff9fd0" roughness={0.5} metalness={0.15} />
+      </mesh>
+      {[-1, 1].map((sd) => (
+        <mesh key={sd} geometry={curtain} position={[sd * 1.95, 1.7, -0.95]} rotation-y={-sd * 0.35}>
+          <meshPhysicalMaterial color="#ff5fae" roughness={0.38} sheen={quality === 'baja' ? 0 : 1} sheenColor="#ffd1ec" side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+      <Podium color="#ffc6e6" radius={0.62} />
       {/* espejo de camerino */}
       <group>
         <mesh position={[-1.5, 1.33, -1.72]} geometry={frame}>

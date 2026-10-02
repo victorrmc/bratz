@@ -8,6 +8,7 @@ const page = await ctx.newPage()
 page.on('console', (m) => { if (m.type() === 'error') console.log('CONSOLE', m.text().slice(0, 300)) })
 page.on('pageerror', (e) => console.log('PAGEERROR', e.message))
 await page.goto(base + (process.env.Q ?? ''))
+await page.getByTestId('start').click()
 await page.waitForSelector('[data-screen]', { timeout: 60000 })
 for (const s of steps) {
   const [cmd, ...rest] = s.split(':')
