@@ -4,6 +4,7 @@ import { audio, buzz } from '../audio/engine'
 import { useGame } from '../store/game'
 import { Coin, Icon, type IconName } from './Icon'
 import { useView } from '../three/view'
+import { SettingsButton } from './Settings'
 
 // Componentes base de la UI con microinteracciones (escala, brillo, vibración).
 
@@ -85,6 +86,7 @@ export function TopBar({ title, children, back = true }: { title?: string; child
       <div className="spacer" />
       {children}
       <CoinCounter />
+      <SettingsButton />
       <AudioToggle />
     </div>
   )

@@ -14,6 +14,12 @@
 6. **Tienda**: con las monedas iniciales puedes comprar el *Top de crochet ibicenco* (55).
 7. **Pasarela**: Clara desfila con el look actual.
 8. **Armario**: el look guardado aparece con su miniatura. Puedes renombrarlo, duplicarlo o borrarlo.
+9. **Sonido** (1 min, con el volumen alto):
+   - Pulsa el **engranaje** de arriba: mueve los volúmenes de **Música** y **Efectos** por separado y pulsa **«Probar efectos»** (tela, cremallera, tacones y aplausos). En Android, deja la **Vibración** activada: el móvil vibra al ritmo de cada efecto.
+   - En **Fotos**, cambia de escenario: la **discoteca** suena a house, **Ibiza al atardecer** a balear chill y **Nuestra casa** (cuando esté desbloqueada) a guitarra.
+   - En el **estudio**, ponte una chaqueta (cremallera), unos tacones (taconazo) y unos pendientes (tintineo).
+   - En la **pasarela**, la música empieza suave, va subiendo mientras Clara anda (se oyen sus tacones a tempo) y explota con aplausos cuando posa.
+   - Presenta un **reto**: el jurado aplaude más cuantas más estrellas saques.
 
 ## Instalarlo y jugar sin conexión
 

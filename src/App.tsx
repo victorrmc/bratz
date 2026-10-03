@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useGame, isDebug } from './store/game'
 import { useView } from './three/view'
 import { audio } from './audio/engine'
+import { useAudioDirector } from './audio/director'
 import { Toasts } from './ui/kit'
 import Loading from './ui/Loading'
 import Splash from './ui/Splash'
@@ -50,31 +51,6 @@ function NoWebGL() {
       </div>
     </div>
   )
-}
-
-function useAudioDirector() {
-  const screen = useGame((s) => s.screen)
-  const settings = useGame((s) => s.save.settings)
-  const audioReady = useGame((s) => s.audioReady)
-  useEffect(() => {
-    const unlock = () => {
-      audio.unlock()
-      useGame.getState().setAudioReady()
-    }
-    window.addEventListener('pointerdown', unlock, { once: true })
-    window.addEventListener('keydown', unlock, { once: true })
-    return () => {
-      window.removeEventListener('pointerdown', unlock)
-      window.removeEventListener('keydown', unlock)
-    }
-  }, [])
-  useEffect(() => {
-    audio.setVolume(settings.volume, settings.muted)
-  }, [settings.volume, settings.muted, audioReady])
-  useEffect(() => {
-    if (!audioReady) return
-    audio.playTrack(screen === 'runway' ? 'runway' : screen === 'ending' || screen === 'letter' ? 'ending' : 'menu')
-  }, [screen, audioReady])
 }
 
 function ScreenRouter() {
