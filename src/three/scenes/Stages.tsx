@@ -7,6 +7,7 @@ import { FloatingGlints } from '../effects'
 import { Bulbs, FloatingShape, GlossyFloor, Islet, NeonTube, Palm, WhiteHouse } from './common'
 import { patternTexture } from '../textures'
 import { extrude, heartShape, roundedRectShape, starShape } from '../geo'
+import DaltVila from './DaltVila'
 
 // Escenarios de la sesión de fotos (y fondos de los retos).
 
@@ -1272,6 +1273,8 @@ export default function StageScene({ id, quality }: { id: string; quality: strin
       return <Ferry quality={quality} />
     case 'casa':
       return <IbizaSunset quality={quality} home />
+    case 'daltvila':
+      return <DaltVila quality={quality} />
     case 'ibiza':
     default:
       return <IbizaSunset quality={quality} />
