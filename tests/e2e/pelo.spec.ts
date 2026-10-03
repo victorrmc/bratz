@@ -69,17 +69,20 @@ test('la coleta se balancea al girar a la muñeca y vuelve a su sitio', async ({
   await openHairTab(page)
   await page.getByTestId('hair-coleta-alta').click()
   await expect.poll(async () => (await stats(page)).chains).toBe(1)
-  // en reposo apenas oscila (solo la brisa)
-  await page.waitForTimeout(3000)
-  const calm = await swingRange(page, 1500)
-  expect(calm).toBeLessThan(0.1)
+  // en reposo apenas oscila (solo la brisa). En máquinas lentas el muelle
+  // tarda más en asentarse tras el cambio de peinado: se espera a que lo haga.
+  let calm = Infinity
+  await expect
+    .poll(async () => (calm = await swingRange(page, 1500)), { timeout: 30_000, intervals: [0] })
+    .toBeLessThan(0.1)
   // giro rápido: la coleta se queda atrás y rebota
   await setRot(page, 3)
   const spun = await swingRange(page, 2500)
   expect(spun).toBeGreaterThan(calm + 0.05)
   // y se asienta otra vez
-  await page.waitForTimeout(5000)
-  expect(await swingRange(page, 1500)).toBeLessThan(spun / 2)
+  await expect
+    .poll(() => swingRange(page, 1500), { timeout: 30_000, intervals: [0] })
+    .toBeLessThan(spun / 2)
 })
 
 test('las trenzas se mueven al caminar por la pasarela', async ({ page, errors }) => {
