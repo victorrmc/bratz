@@ -218,12 +218,16 @@ function CameraRig({ preset, orbit = false, interactive = true }: { preset: stri
 function HolderControl({ holder, y, follow }: { holder: React.RefObject<THREE.Group | null>; y: number; follow: boolean }) {
   useEffect(() => {
     interaction.dollRotY = 0
-  }, [follow])
+    // al salir de la pasarela la muñeca puede venir girada (media vuelta o giro
+    // de 360°): se pone de frente al momento para que no aparezca de espaldas
+    if (holder.current) holder.current.rotation.y = 0
+  }, [follow, holder])
   useFrame((_, dt) => {
     const h = holder.current
     if (!h) return
     h.position.set(0, y, 0)
     if (follow) h.rotation.y += (interaction.dollRotY - h.rotation.y) * Math.min(1, dt * 10)
+    else h.rotation.y = 0
   })
   return null
 }

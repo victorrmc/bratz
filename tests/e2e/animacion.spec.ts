@@ -99,3 +99,21 @@ test('el jurado provoca una reacción con aplauso y saltito', async ({ page, err
   expect(info.expr).toBe('sonrisa')
   expect(info.stats.minClearance).toBeGreaterThan(-0.003)
 })
+
+test('al salir de la pasarela con la muñeca girada, en la portada aparece de frente', async ({ page, errors }) => {
+  void errors
+  await openFresh(page)
+  await skipOnboarding(page)
+  const holderRot = () =>
+    page.evaluate(() => {
+      const r = (window as unknown as { __clara: { interaction: { rig: { root: { parent: { rotation: { y: number } } | null } } | null } } }).__clara.interaction.rig
+      return r?.root.parent?.rotation.y ?? 0
+    })
+  await page.evaluate(() => (window as unknown as { __clara: { store: { getState: () => { go: (s: string) => void } } } }).__clara.store.getState().go('runway'))
+  await expect(page.locator('[data-screen="runway"]')).toBeVisible()
+  // espera a que gire (media vuelta al final de la pasarela o giro de 360°)
+  await expect.poll(async () => Math.abs(await holderRot()), { timeout: 90_000, intervals: [100] }).toBeGreaterThan(1)
+  await page.evaluate(() => (window as unknown as { __clara: { store: { getState: () => { go: (s: string) => void } } } }).__clara.store.getState().go('home'))
+  await expect(page.locator('[data-screen="home"]')).toBeVisible()
+  await expect.poll(holderRot).toBe(0)
+})
