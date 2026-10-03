@@ -1,7 +1,7 @@
-import { ContactShadows } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
+import { DollShadow } from '../shadow'
 import { GlamEnvironment, ThreePointLights } from '../env'
 import { FloatingGlints } from '../effects'
 import { FloatingShape, GlossyFloor, GradientSky, Islet, Podium, Sea } from './common'
@@ -41,7 +41,7 @@ export default function HomeScene({ quality }: { quality: string }) {
       <FloatingShape kind="star" position={[-1.7, 0.9, -0.8]} scale={0.18} color="#c38bff" />
       <FloatingShape kind="heart" position={[1.6, 0.8, -0.6]} scale={0.18} color="#ff9fd0" />
       <FloatingGlints count={quality === 'baja' ? 20 : 60} area={[3.5, 2.6, 2]} />
-      {quality !== 'baja' && <ContactShadows position={[0, 0.082, 0]} opacity={0.5} scale={2.2} blur={2.4} far={1.6} resolution={512} color="#8a3b6e" />}
+      <DollShadow quality={quality} y={0.082} opacity={0.5} color="#8a3b6e" />
     </>
   )
 }

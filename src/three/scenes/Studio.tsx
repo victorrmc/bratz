@@ -1,6 +1,6 @@
-import { ContactShadows } from '@react-three/drei'
 import { useMemo } from 'react'
 import * as THREE from 'three'
+import { DollShadow } from '../shadow'
 import { GlamEnvironment, ThreePointLights } from '../env'
 import { FloatingGlints } from '../effects'
 import { Bulbs, FloatingShape, GlossyFloor, GradientSky, Podium } from './common'
@@ -129,7 +129,7 @@ export default function StudioScene({ quality }: { quality: string }) {
         </>
       )}
       {quality !== 'baja' && <FloatingGlints count={40} />}
-      {quality !== 'baja' && <ContactShadows position={[0, 0.062, 0]} opacity={0.55} scale={2.2} blur={2.4} far={1.6} resolution={512} color="#8a3b6e" />}
+      <DollShadow quality={quality} y={0.062} opacity={0.55} color="#8a3b6e" />
     </>
   )
 }
