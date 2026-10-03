@@ -40,7 +40,7 @@ export const DOLLS: DollDef[] = [
         bag: { itemId: 'bag-baguette', color: '#c9a7ff', pattern: 'purpurina' },
       },
       hair: {
-        styleId: 'boda-ibicenca',
+        styleId: 'mono-bajo',
         base: '#5a2018',
         highlights: '#7e3322',
         highlightsOn: true,
