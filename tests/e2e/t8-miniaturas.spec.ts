@@ -144,8 +144,10 @@ test('transiciones entre pantallas sin interfaz fantasma', async ({ page, errors
     expect(await g.locator('[data-testid]').count()).toBe(0)
     expect(await g.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none')
   }
-  // y desaparece sola
-  await expect(ghosts).toHaveCount(0, { timeout: 3_000 })
+  // y desaparece sola. Con render por software a 1440 un solo fotograma puede
+  // durar más de 4 s y retrasa el temporizador que la quita (en un móvil real
+  // se va a los ~0,5 s), así que el margen es amplio
+  await expect(ghosts).toHaveCount(0, { timeout: 15_000 })
   // muchos cambios seguidos: ni copias acumuladas ni pantallas duplicadas
   await page.evaluate(() => {
     const s = (window as unknown as { __clara: { store: { getState: () => { go: (x: string) => void } } } }).__clara.store.getState()
@@ -153,7 +155,7 @@ test('transiciones entre pantallas sin interfaz fantasma', async ({ page, errors
   })
   await expect(page.locator('[data-screen]')).toHaveCount(1)
   await expect(page.locator('[data-screen="home"]')).toBeAttached()
-  await expect(ghosts).toHaveCount(0, { timeout: 3_000 })
+  await expect(ghosts).toHaveCount(0, { timeout: 15_000 })
   // la pantalla final queda totalmente opaca y usable
   await expect.poll(() => page.locator('[data-screen="home"]').evaluate((el) => getComputedStyle(el).opacity), { timeout: 3_000 }).toBe('1')
   await page.getByTestId('menu-shop').click()
