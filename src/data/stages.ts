@@ -14,6 +14,13 @@ export const STAGES: StageDef[] = [
     mood: 'Una terraza blanca con vistas al mar, un columpio y dos tazas de café. Nuestro futuro.',
     secret: true,
   },
+  {
+    id: 'daltvila',
+    name: 'Cena en Dalt Vila',
+    mood: 'Noche entre murallas encaladas, farolillos encendidos y el puerto brillando abajo.',
+    // se abre en la sesión de fotos con el final, como «Nuestra casa»; en la historia es el capítulo 4
+    secret: true,
+  },
 ]
 
 export const STAGE_BY_ID: Record<string, StageDef> = Object.fromEntries(STAGES.map((s) => [s.id, s]))
