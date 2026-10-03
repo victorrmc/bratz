@@ -3,7 +3,7 @@ import type { Look } from '../data/types'
 // Guardado en localStorage con versión y migraciones.
 
 export const SAVE_KEY = 'clara-ibiza-save'
-export const SAVE_VERSION = 3
+export const SAVE_VERSION = 4
 
 export type Quality = 'auto' | 'baja' | 'media' | 'alta'
 
@@ -13,6 +13,11 @@ export interface SavedLook {
   look: Look
   thumb?: string
   createdAt: number
+}
+
+/** Progreso del modo historia: capítulos superados con su mejor nota. */
+export interface StoryProgress {
+  chapters: Record<string, { stars: number; completedAt: number }>
 }
 
 export interface SaveData {
@@ -31,6 +36,7 @@ export interface SaveData {
   endingSeen: boolean
   endingUnlocked: boolean
   settings: { volume: number; muted: boolean; quality: Quality }
+  story: StoryProgress
 }
 
 export const STARTING_COINS = 60
@@ -49,6 +55,7 @@ export function defaultSave(): SaveData {
     endingSeen: false,
     endingUnlocked: false,
     settings: { volume: 0.7, muted: false, quality: 'auto' },
+    story: { chapters: {} },
   }
 }
 
@@ -59,6 +66,7 @@ const isObj = (v: unknown): v is AnyObj => typeof v === 'object' && v !== null &
  * v1: { version:1, coins, owned, completed: string[], looks: {name, look}[] }
  * v2: añade challengeStars, looks con id/createdAt, settings sin calidad.
  * v3: calidad gráfica, heartFound/endingUnlocked, look actual por muñeca.
+ * v4: progreso del modo historia (las fotos de recuerdo van aparte, en IndexedDB).
  */
 export function migrate(raw: unknown): SaveData {
   const base = defaultSave()
@@ -96,6 +104,10 @@ export function migrate(raw: unknown): SaveData {
     }
     version = 3
   }
+  if (version < 4) {
+    data = { ...data, story: { chapters: {} } }
+    version = 4
+  }
 
   const settings = isObj(data.settings) ? data.settings : {}
   const out: SaveData = {
@@ -123,8 +135,19 @@ export function migrate(raw: unknown): SaveData {
         ? (settings.quality as Quality)
         : 'auto',
     },
+    story: normalizeStory(data.story),
   }
   return out
+}
+
+function normalizeStory(raw: unknown): StoryProgress {
+  const chapters: StoryProgress['chapters'] = {}
+  const src = isObj(raw) && isObj(raw.chapters) ? raw.chapters : {}
+  for (const [id, v] of Object.entries(src)) {
+    if (!isObj(v) || typeof v.stars !== 'number' || v.stars < 1 || v.stars > 5) continue
+    chapters[id] = { stars: Math.round(v.stars), completedAt: typeof v.completedAt === 'number' ? v.completedAt : 0 }
+  }
+  return { chapters }
 }
 
 export interface StorageLike {
