@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { NailLook, NailShape } from '../data/types'
-import { onDetailChange, surface } from './geo'
+import { merge, onDetailChange, orientOutward, smoothstep, surface } from './geo'
 import { patternTexture } from './textures'
 
 // Uñas: lámina curvada sobre la falange distal con forma configurable.
@@ -40,21 +40,37 @@ export function nailGeometry(shape: NailShape, fingerR = 0.0058): THREE.BufferGe
   if (hit) return hit
   const len = LEN[shape]
   const r = fingerR + 0.0007
-  const g = surface(
-    10,
-    14,
+  // grosor de la lámina: fino en la cutícula y algo más en el borde libre
+  const thick = (t: number) => 0.00022 + 0.00028 * smoothstep(0.35, 1, t)
+  const point = (u: number, t: number, inner: number, out: THREE.Vector3) => {
+    const half = widthAt(shape, t)
+    const across = (u - 0.5) * 2 * half
+    const rr = r - inner
+    const a = across / r
+    // arco transversal (curva en C) algo más marcado que el dedo y la punta ligeramente caída
+    const c = 0.00035 * (1 - (across / Math.max(half, 1e-5)) ** 2)
+    const y = -t * len
+    out.set(Math.cos(a) * rr + c - 0.0006 * t * t, y, Math.sin(a) * rr)
+    return out
+  }
+  const top = surface(12, 16, (u, v, out) => point(u, v, 0, out), { uvMode: 'param', orient: 'auto', fixed: true })
+  // cara inferior y canto: dan volumen a la punta que sobresale del dedo
+  const bottom = surface(12, 16, (u, v, out) => point(u, v, thick(v), out), { uvMode: 'param', fixed: true, flip: true })
+  const edge = surface(
+    48,
+    1,
     (u, v, out) => {
-      const t = v
-      const half = widthAt(shape, t)
-      const across = (u - 0.5) * 2 * half
-      const a = across / r
-      // la punta se curva ligeramente hacia abajo y sobresale del dedo
-      const y = -t * len
-      const lift = 0.0012 * t * t
-      out.set(Math.cos(a) * r + lift * 0.2 - 0.0006 * t * t, y, Math.sin(a) * r)
+      // contorno: lado izquierdo (t 0→1), punta y lado derecho (t 1→0)
+      const k = u * 2
+      const t = k <= 1 ? k : 2 - k
+      const side = k <= 1 ? 0 : 1
+      return point(side, t, v * thick(t), out)
     },
-    { uvMode: 'param', orient: 'auto' },
+    { uvMode: 'param', fixed: true },
   )
+  orientOutward(edge, new THREE.Vector3(r * 0.7, -len * 0.5, 0))
+  edge.computeVertexNormals()
+  const g = merge([top, bottom, edge])
   geoCache.set(key, g)
   return g
 }
@@ -67,9 +83,10 @@ export function nailMaterial(n: NailLook): THREE.MeshPhysicalMaterial {
   const m = new THREE.MeshPhysicalMaterial({ color: n.color, side: THREE.DoubleSide })
   switch (n.finish) {
     case 'brillo':
-      m.roughness = 0.12
+      m.roughness = 0.14
       m.clearcoat = 1
       m.clearcoatRoughness = 0.02
+      m.envMapIntensity = 1.6
       break
     case 'mate':
       m.roughness = 0.7

@@ -12,12 +12,14 @@ import {
   mirrorX,
   neckGeometry,
   torsoGeometry,
-  FINGERS,
   footPath,
+  torsoNormalCanvas,
+  handParts,
+  nailMatrix,
 } from './body'
-import { ellipsoid, merge, onDetailChange, sweep } from './geo'
-import { faceTextures } from './face'
-import { skinMaterial, getMaterialQuality } from './materials'
+import { ellipsoid, merge, onDetailChange } from './geo'
+import { buildEyes, faceNormalCanvas, faceTextures, openEyes, type EyeSet } from './face'
+import { skinMaterial, getMaterialQuality, headSkinMaterial, torsoSkinMaterial } from './materials'
 import { nailGeometry, nailMaterial } from './nails'
 import {
   blendPose,
@@ -112,54 +114,12 @@ function buildShared() {
     thighR: limbGeometry(RL.thigh),
     shinR: withSphere(limbGeometry(RL.shin), mirrorX(J.kneeL), 0.0375),
     ears: merge([earGeometry(1), earGeometry(-1)]),
-    palm: (() => {
-      const g = ellipsoid(0.0135, 0.034, 0.022, 24, 16)
-      g.translate(0, -0.034, 0)
-      return g
-    })(),
-    fingerSegs: FINGERS.map((f) => {
-      const a = f.len * 0.55
-      const b = f.len * 0.45
-      return {
-        prox: sweep(new THREE.LineCurve3(new THREE.Vector3(0, 0.002, 0), new THREE.Vector3(0, -a, 0)), (t) => f.r * (1 - 0.06 * t), {
-          radial: 12,
-          segments: 4,
-          capStart: true,
-          capEnd: true,
-          ellipse: [0.88, 1],
-        }),
-        dist: sweep(new THREE.LineCurve3(new THREE.Vector3(0, 0.001, 0), new THREE.Vector3(0, -b, 0)), (t) => f.r * 0.94 * (1 - 0.12 * t), {
-          radial: 12,
-          segments: 4,
-          capStart: true,
-          capEnd: true,
-          ellipse: [0.88, 1],
-        }),
-        a,
-        b,
-      }
-    }),
-    thumb: {
-      prox: sweep(new THREE.LineCurve3(new THREE.Vector3(0, 0.002, 0), new THREE.Vector3(0, -0.02, 0)), () => 0.0072, {
-        radial: 12,
-        segments: 4,
-        capStart: true,
-        capEnd: true,
-      }),
-      dist: sweep(new THREE.LineCurve3(new THREE.Vector3(0, 0.001, 0), new THREE.Vector3(0, -0.017, 0)), (t) => 0.0066 * (1 - 0.1 * t), {
-        radial: 12,
-        segments: 4,
-        capStart: true,
-        capEnd: true,
-      }),
-    },
-
   }
 }
 
 const CURLS = [0, 0.2, 0.35, 0.9]
 
-type FaceTex = { map: THREE.CanvasTexture; rm: THREE.CanvasTexture }
+type FaceTex = { map: THREE.CanvasTexture; rm: THREE.CanvasTexture; alpha: THREE.CanvasTexture }
 const FACE_CACHE_MAX = 10
 
 // temporales del IK de piernas
@@ -197,78 +157,45 @@ onDetailChange(() => {
   shared = null
 })
 
+/** Refleja una geometría en x (mano derecha) invirtiendo el orden de los triángulos. */
+function mirrorGeo(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  const c = g.clone()
+  c.scale(-1, 1, 1)
+  const idx = c.getIndex()
+  if (idx) {
+    const arr = idx.array as Uint16Array | Uint32Array
+    for (let k = 0; k < arr.length; k += 3) {
+      const t = arr[k + 1]
+      arr[k + 1] = arr[k + 2]
+      arr[k + 2] = t
+    }
+  }
+  return c
+}
+
+let torsoNormal: THREE.CanvasTexture | null = null
+function torsoNormalMap() {
+  // sin DOM (tests de la lógica del rig) no hay canvas: el torso va sin relieve
+  if (typeof document === 'undefined') return null
+  if (!torsoNormal) torsoNormal = new THREE.CanvasTexture(torsoNormalCanvas())
+  return torsoNormal
+}
+
 /** Construye la mano (coordenadas locales de la muñeca) con los dedos flexionados. */
 function handGeometry(side: 'L' | 'R', curlIn: number, shape: NailShape) {
   const curl = CURLS.reduce((a, b) => (Math.abs(b - curlIn) < Math.abs(a - curlIn) ? b : a))
   const key = `${side}|${curl}|${shape}`
   const hit = handCache.get(key)
   if (hit) return hit
-  if (!shared) shared = buildShared()
-  const S = shared
-  const s = side === 'L' ? 1 : -1
-  const root = new THREE.Group()
-  const skinParts: [THREE.BufferGeometry, THREE.Object3D][] = []
-  const nailParts: [THREE.BufferGeometry, THREE.Object3D][] = []
-  const palm = new THREE.Object3D()
-  root.add(palm)
-  skinParts.push([S.palm, palm])
-  FINGERS.forEach((f, i) => {
-    const seg = S.fingerSegs[i]
-    const c = curl * (1 + i * 0.18) + 0.08
-    const knuckle = new THREE.Object3D()
-    knuckle.position.set(0.0015 * s, -0.062, f.z)
-    knuckle.rotation.set(0, 0, -s * c * 0.9)
-    root.add(knuckle)
-    skinParts.push([seg.prox, knuckle])
-    const mid = new THREE.Object3D()
-    mid.position.set(0, -seg.a, 0)
-    mid.rotation.set(0, 0, -s * c * 1.1)
-    knuckle.add(mid)
-    skinParts.push([seg.dist, mid])
-    const nail = new THREE.Object3D()
-    nail.position.set(0, -seg.b * 0.35, 0)
-    if (s < 0) nail.scale.x = -1
-    mid.add(nail)
-    nailParts.push([nailGeometry(shape), nail])
-  })
-  const tb = new THREE.Object3D()
-  tb.position.set(-0.004 * s, -0.016, 0.017)
-  tb.rotation.set(0.55, 0, -0.35 * s)
-  root.add(tb)
-  skinParts.push([S.thumb.prox, tb])
-  const tm = new THREE.Object3D()
-  tm.position.set(0, -0.02, 0)
-  tm.rotation.set(0.2, 0, -0.15 * s)
-  tb.add(tm)
-  skinParts.push([S.thumb.dist, tm])
-  const tn = new THREE.Object3D()
-  tn.position.set(0, -0.006, 0)
-  tn.rotation.y = s > 0 ? 0 : Math.PI
-  tm.add(tn)
-  nailParts.push([nailGeometry(shape, 0.0066), tn])
-  root.updateMatrixWorld(true)
-  const bake = (parts: [THREE.BufferGeometry, THREE.Object3D][]) =>
-    merge(
-      parts.map(([g, o]) => {
-        const c = g.clone()
-        c.applyMatrix4(o.matrixWorld)
-        // las mallas reflejadas invierten el orden de los triángulos
-        if (o.matrixWorld.determinant() < 0) {
-          const idx = c.getIndex()
-          if (idx) {
-            const arr = idx.array as Uint16Array | Uint32Array
-            for (let k = 0; k < arr.length; k += 3) {
-              const t = arr[k + 1]
-              arr[k + 1] = arr[k + 2]
-              arr[k + 2] = t
-            }
-          }
-          c.computeVertexNormals()
-        }
-        return c
-      }),
-    )
-  const res = { skin: bake(skinParts), nails: bake(nailParts) }
+  const parts = handParts(curl)
+  const nails = merge(
+    parts.nails.map((n) => {
+      const g = nailGeometry(shape, n.r).clone()
+      g.applyMatrix4(nailMatrix(n))
+      return g
+    }),
+  )
+  const res = side === 'L' ? { skin: parts.skin, nails } : { skin: mirrorGeo(parts.skin), nails: mirrorGeo(nails) }
   handCache.set(key, res)
   return res
 }
@@ -282,6 +209,8 @@ export class DollRig {
   private headMat: THREE.MeshPhysicalMaterial
   private faceCache = new Map<string, FaceTex>()
   private faceApplied = ''
+  private faceNormal: THREE.CanvasTexture | null = null
+  private eyes: EyeSet
   private skin: THREE.MeshPhysicalMaterial
   private hands = {} as Record<'L' | 'R', { skin: THREE.Mesh; nails: THREE.Mesh; curl: number }>
   private nailShape: NailShape = 'almendra'
@@ -355,7 +284,7 @@ export class DollRig {
       this.skinMeshes.push(m)
       return m
     }
-    add('hips', S.torso)
+    add('hips', S.torso, torsoSkinMaterial(doll.skin, torsoNormalMap()))
     add('neck', S.neck)
     add('shoulderL', S.upperL)
     add('elbowL', S.foreL)
@@ -367,19 +296,13 @@ export class DollRig {
     add('kneeR', S.shinR)
     add('head', S.ears)
 
-    // Cabeza con la cara pintada
-    this.headMat = new THREE.MeshPhysicalMaterial({
-      color: '#ffffff',
-      roughness: 1,
-      metalness: 1,
-      clearcoat: getMaterialQuality() === 'baja' ? 0 : 0.15,
-      clearcoatRoughness: 0.4,
-      sheen: 0.3,
-      sheenColor: new THREE.Color('#ffd9d2'),
-    })
+    // Cabeza con la cara pintada (los ojos se recortan y van en 3D detrás)
+    this.headMat = headSkinMaterial()
     this.headMesh = new THREE.Mesh(headGeometry({ lipFullness: doll.face.lipFullness }), this.headMat)
     this.headMesh.castShadow = true
     this.attach.head.add(this.headMesh)
+    this.eyes = buildEyes(doll, { lipFullness: doll.face.lipFullness }, this.headMat, this.skin)
+    this.attach.head.add(this.eyes.group)
 
     // Manos: palma + dedos fusionados en una malla (y otra para las uñas)
     for (const side of ['L', 'R'] as const) {
@@ -389,6 +312,7 @@ export class DollRig {
       this.attach[`wrist${side}`].add(hand)
       const geo = handGeometry(side, 0.15, 'almendra')
       const skinM = new THREE.Mesh(geo.skin, this.skin)
+      skinM.name = `mano-${side}`
       const nailM = new THREE.Mesh(geo.nails, nailMaterial({ shape: 'almendra', color: '#3a0f1f', finish: 'brillo' }))
       hand.add(skinM, nailM)
       this.hands[side] = { skin: skinM, nails: nailM, curl: 0.15 }
@@ -507,6 +431,16 @@ export class DollRig {
     const key = JSON.stringify([m, getMaterialQuality()])
     if (key === this.faceKey) return
     this.faceKey = key
+    const res = getMaterialQuality() === 'baja' ? 512 : 1024
+    if (getMaterialQuality() !== 'baja') {
+      this.faceNormal?.dispose()
+      this.faceNormal = new THREE.CanvasTexture(faceNormalCanvas(this.doll, this.expression, res / 2))
+      if (this.headMat.normalMap !== this.faceNormal) {
+        const first = !this.headMat.normalMap
+        this.headMat.normalMap = this.faceNormal
+        if (first) this.headMat.needsUpdate = true
+      }
+    }
     this.lastMakeup = m
     // las texturas viejas se liberan después de poner las nuevas
     const old = [...this.faceCache.values()]
@@ -516,6 +450,7 @@ export class DollRig {
     for (const f of old) {
       f.map.dispose()
       f.rm.dispose()
+      f.alpha.dispose()
     }
   }
   private lastMakeup: MakeupLook | null = null
@@ -563,6 +498,7 @@ export class DollRig {
         if (k === key || v.map === this.headMat.map) continue
         v.map.dispose()
         v.rm.dispose()
+        v.alpha.dispose()
         this.faceCache.delete(k)
         break
       }
@@ -582,7 +518,9 @@ export class DollRig {
     this.headMat.map = f.map
     this.headMat.roughnessMap = f.rm
     this.headMat.metalnessMap = f.rm
+    this.headMat.alphaMap = f.alpha
     if (first) this.headMat.needsUpdate = true
+    this.eyes.setOpen(openEyes({ closed, expression: expr }))
   }
 
   /** Cambia de pose con una transición con anticipación y asentamiento. */
@@ -921,8 +859,11 @@ export class DollRig {
     for (const f of this.faceCache.values()) {
       f.map.dispose()
       f.rm.dispose()
+      f.alpha.dispose()
     }
     this.faceCache.clear()
+    this.faceNormal?.dispose()
+    this.eyes.dispose()
     this.root.removeFromParent()
   }
 }

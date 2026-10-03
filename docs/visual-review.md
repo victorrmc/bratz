@@ -169,3 +169,23 @@ Las capturas están en `docs/screenshots/<ronda>/`, con un viewport de 390×844 
 - El **centro comercial**, que era el escenario más flojo (6), sube a 7 tras rediseñarlo. Ya no queda ninguna captura por debajo de 7.
 
 Subir de 7 a 8 de forma generalizada necesitaría modelos GLB/VRM hechos por un artista. El sistema está preparado para incorporarlos en `/assets`.
+
+## Tarea «muñecas con acabado comercial» (`munecas`)
+
+Capturas en `docs/screenshots/munecas/`, con el prefijo `antes-` (estado de la ronda 4) y `despues-`. Mismo viewport (390×844, DPR 2, calidad alta, SwiftShader). Se generan con `node scripts/shots-munecas.mjs <prefijo>`. Solo se puntúa **Pers.**, que es el criterio que limitaba la nota; el resto no cambia respecto a la ronda 4.
+
+| Captura | Pers. antes | Pers. después | Qué cambia |
+|---|---|---|---|
+| 01 cara | 8 | **8** | Ojos 3D con brillo propio; nariz y labios con relieve (normal map) |
+| 02 cara en 3/4 | 7 | **8** | El ojo deja de ser una pegatina: se ve el globo hundido bajo el párpado y la córnea encima del iris |
+| 03 ojos de cerca | 7 | **8** | Iris cálido con fibras y anillo límbico, pupila, sombra del párpado, línea de pestañas en relieve |
+| 04 manos | 7 | **8** | Pulgar visible, dedos de una pieza con nudillos (sin anillos entre falanges), uñas con grosor, muñeca empalmada con la palma |
+| 05 manos de cerca | 6 | **8** | Antes: dedos como cilindros con juntas y palma de huevo. Ahora: palma esculpida, eminencia tenar y yemas |
+| 06 cuerpo de frente | 7 | **8** | Clavículas y escotadura del cuello; codos sin escalón; piel con subsurface |
+| 07 cuerpo en 3/4 | 7 | **8** | Igual; en el codo flexionado queda una marca suave de articulación, propia de muñeca articulada |
+| 08 busto | 7 | **8** | Clavículas y hueco supraclavicular visibles sobre el escote |
+| 09 Nayra / Vega / Alba | 7 | **8** | Los ojos 3D y la piel nueva se aplican a todas (iris de su color) |
+
+**Resultado:** la nota mínima de personajes en estas capturas pasa de **6–7 a 8**.
+
+**Lo que sigue sin ser de 9:** la cabeza y el cuello son superficies paramétricas lisas (cuello cilíndrico), los hombros son tipo rótula y el pelo no ha cambiado. Para pasar de 8 haría falta un modelo esculpido por un artista.

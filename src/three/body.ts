@@ -130,8 +130,104 @@ export function torsoGeometry(): THREE.BufferGeometry {
       if (v === 0) p.set(0, TORSO_Y0 - 0.008, 0)
       out.copy(p)
     },
-    { closedU: true, orient: 'auto' },
+    { closedU: true, orient: 'auto', uvMode: 'param' },
   )
+}
+
+// ───────────── Relieve del torso (normal map procedural) ─────────────
+
+/** y del torso para el parámetro v (la malla concentra filas en hombros y cadera). */
+const torsoY = (v: number) => TORSO_Y0 + (TORSO_Y1 - TORSO_Y0) * (1 - Math.cos(v * Math.PI)) * 0.5
+
+/** Clavícula: altura de la cresta en función de |x| (forma de S suave). */
+function clavicleY(ax: number): number {
+  const t = (ax - 0.016) / 0.118
+  return 1.262 + 0.013 * t + 0.0035 * Math.sin(t * Math.PI * 1.6)
+}
+
+/** Relieve en metros (positivo = hacia fuera) de un punto del torso. */
+export function torsoRelief(x: number, y: number, z: number): number {
+  const ax = Math.abs(x)
+  let h = 0
+  if (z > 0) {
+    const front = smoothstep(0.0, 0.03, z)
+    // clavículas: cresta con el hueco supraclavicular encima
+    const span = smoothstep(0.012, 0.03, ax) * (1 - smoothstep(0.118, 0.14, ax))
+    const yc = clavicleY(ax)
+    h += span * (0.0028 * gauss(y - yc, 0.0042) - 0.0016 * gauss(y - yc - 0.011, 0.0055) * smoothstep(0.03, 0.05, ax))
+    // cabeza esternal de la clavícula y escotadura yugular
+    h += 0.0012 * gauss(ax - 0.02, 0.006) * gauss(y - 1.262, 0.005)
+    h -= 0.0022 * gauss(x, 0.008) * gauss(y - 1.27, 0.007)
+    // esternón y línea alba (muy suaves)
+    h -= 0.0006 * gauss(x, 0.006) * smoothstep(1.06, 1.12, y) * (1 - smoothstep(1.2, 1.25, y))
+    h -= 0.0005 * gauss(x, 0.005) * smoothstep(0.93, 0.97, y) * (1 - smoothstep(1.03, 1.08, y))
+    // caja torácica bajo el pecho
+    h += 0.0007 * gauss(ax - 0.06, 0.03) * gauss(y - 1.085, 0.008)
+    // ombligo
+    h -= 0.0032 * gauss(x, 0.0035) * gauss(y - 0.948, 0.0045)
+    h += 0.0008 * gauss(x, 0.007) * gauss(y - 0.955, 0.004)
+    // crestas de la cadera
+    h += 0.0012 * gauss(ax - 0.1, 0.012) * gauss(y - 0.905, 0.018)
+    h *= front
+  } else {
+    const back = smoothstep(0.0, -0.03, z)
+    // columna y omóplatos
+    h -= 0.0024 * gauss(x, 0.007) * smoothstep(0.92, 0.98, y) * (1 - smoothstep(1.25, 1.29, y))
+    h += 0.0016 * gauss(ax - 0.012, 0.007) * smoothstep(0.94, 1.0, y) * (1 - smoothstep(1.06, 1.12, y))
+    h += 0.0024 * gauss(ax - 0.065, 0.022) * gauss(y - 1.19, 0.03) * (1 - 0.6 * gauss(ax - 0.035, 0.008))
+    h -= 0.0012 * gauss(ax - 0.035, 0.006) * gauss(y - 1.18, 0.035)
+    // hoyuelos lumbares
+    h -= 0.0016 * gauss(ax - 0.03, 0.008) * gauss(y - 0.885, 0.01)
+    h *= back
+  }
+  // clavícula hasta el hombro (también visible de lado)
+  return h
+}
+
+/** Normal map del torso en espacio tangente (lienzo: u = vuelta, v = altura). */
+export function torsoNormalCanvas(w = 512, h = 512): HTMLCanvasElement {
+  const P = new Float32Array((w + 2) * (h + 2) * 3)
+  const H = new Float32Array((w + 2) * (h + 2))
+  const p = new THREE.Vector3()
+  for (let r = -1; r <= h; r++) {
+    // fila 0 del lienzo = v = 1 (flipY de la textura)
+    const v = Math.min(1, Math.max(0, 1 - (r + 0.5) / h))
+    const y = torsoY(v)
+    for (let c = -1; c <= w; c++) {
+      const u = (c + 0.5) / w
+      torsoPoint(Math.max(TORSO_Y0 + 0.0001, y), u * Math.PI * 2 + Math.PI, 0, 0, p)
+      const k = (r + 1) * (w + 2) + (c + 1)
+      P[k * 3] = p.x
+      P[k * 3 + 1] = p.y
+      P[k * 3 + 2] = p.z
+      H[k] = torsoRelief(p.x, p.y, p.z)
+    }
+  }
+  const cv = document.createElement('canvas')
+  cv.width = w
+  cv.height = h
+  const ctx = cv.getContext('2d')!
+  const img = ctx.createImageData(w, h)
+  const dist = (a: number, b: number) => Math.hypot(P[a * 3] - P[b * 3], P[a * 3 + 1] - P[b * 3 + 1], P[a * 3 + 2] - P[b * 3 + 2]) || 1e-6
+  for (let r = 0; r < h; r++) {
+    for (let c = 0; c < w; c++) {
+      const k = (r + 1) * (w + 2) + (c + 1)
+      const kl = k - 1
+      const kr = k + 1
+      const ku = k - (w + 2) // fila de arriba = v mayor
+      const kd = k + (w + 2)
+      const du = (H[kr] - H[kl]) / dist(kr, kl)
+      const dv = (H[ku] - H[kd]) / dist(ku, kd)
+      const n = new THREE.Vector3(-du, -dv, 1).normalize()
+      const o = (r * w + c) * 4
+      img.data[o] = Math.round((n.x * 0.5 + 0.5) * 255)
+      img.data[o + 1] = Math.round((n.y * 0.5 + 0.5) * 255)
+      img.data[o + 2] = Math.round((n.z * 0.5 + 0.5) * 255)
+      img.data[o + 3] = 255
+    }
+  }
+  ctx.putImageData(img, 0, 0)
+  return cv
 }
 
 export function neckGeometry(): THREE.BufferGeometry {
@@ -150,13 +246,14 @@ export const upperArmR = table([
   [0.0, 0.038],
   [0.05, 0.037],
   [0.12, 0.034],
-  [0.2, 0.03],
-  [0.255, 0.027],
+  [0.2, 0.0292],
+  [0.24, 0.0268],
+  [0.255, 0.0255],
 ])
 export const forearmR = table([
-  [-0.02, 0.026],
-  [0.0, 0.027],
-  [0.05, 0.03],
+  [-0.02, 0.0245],
+  [0.0, 0.0262],
+  [0.05, 0.0296],
   [0.12, 0.026],
   [0.2, 0.02],
   [0.218, 0.0185],
@@ -224,43 +321,175 @@ export function legSegs(side: 1 | -1) {
 
 // ───────────────────────── MANOS ─────────────────────────
 
-/** Mano izquierda en reposo: palma hacia el muslo (−x), dedos hacia −y. */
+/**
+ * Mano izquierda en reposo (local a la muñeca): palma hacia el muslo (−x),
+ * dorso hacia +x, dedos hacia −y. z+ = lado del índice y del pulgar.
+ */
 export const FINGERS = [
-  // [desplazamiento z, largo, radio, curvatura]
-  { z: 0.0135, len: 0.04, r: 0.0058, curl: 0.25 },
-  { z: 0.0045, len: 0.044, r: 0.006, curl: 0.3 },
-  { z: -0.0048, len: 0.042, r: 0.0058, curl: 0.35 },
-  { z: -0.0135, len: 0.034, r: 0.0051, curl: 0.42 },
+  // índice, corazón, anular y meñique: [z, largo, radio, altura del nudillo]
+  { z: 0.0128, len: 0.041, r: 0.0054, k: -0.0585 },
+  { z: 0.0042, len: 0.045, r: 0.0056, k: -0.0598 },
+  { z: -0.0045, len: 0.042, r: 0.0053, k: -0.0588 },
+  { z: -0.0127, len: 0.034, r: 0.0047, k: -0.0558 },
 ]
+/** Proporción de cada falange (proximal, media y distal). */
+const PHAL = [0.46, 0.3, 0.24]
 
-export function fingerCurve(f: (typeof FINGERS)[number], curlExtra = 0): THREE.CatmullRomCurve3 {
-  const k = f.curl + curlExtra
-  const pts: [number, number, number][] = []
-  for (let i = 0; i <= 4; i++) {
-    const t = i / 4
-    const ang = k * t * 1.4
-    pts.push([-Math.sin(ang) * f.len * t * 0.55, -0.058 - Math.cos(ang * 0.6) * f.len * t, f.z * (1 - 0.15 * t)])
-  }
-  return curveOf(pts)
+const palmHW = table([
+  [0.007, 0.0168],
+  [0.0, 0.0166],
+  [-0.009, 0.0156],
+  [-0.02, 0.0163],
+  [-0.045, 0.0182],
+  [-0.058, 0.0176],
+])
+const palmHT = table([
+  [0.007, 0.0134],
+  [0.0, 0.0127],
+  [-0.009, 0.0104],
+  [-0.016, 0.009],
+  [-0.032, 0.0082],
+  [-0.05, 0.0074],
+  [-0.058, 0.0066],
+])
+
+/** Altura de los nudillos en función de z (interpolada entre los dedos). */
+const knuckleLine = table([...FINGERS].reverse().map((f) => [f.z, f.k] as [number, number]))
+
+/** Palma esculpida: nudillos y tendones en el dorso, eminencias tenar e hipotenar en la palma. */
+function palmGeometry(): THREE.BufferGeometry {
+  const y0 = 0.007
+  const y1 = -0.064
+  return surface(
+    36,
+    26,
+    (u, v, out) => {
+      const y = y0 + (y1 - y0) * v
+      const a = u * Math.PI * 2
+      const c = Math.cos(a)
+      const sn = Math.sin(a)
+      const se = (t: number) => Math.sign(t) * Math.pow(Math.abs(t), 2 / 2.6)
+      // cierre redondeado siguiendo la línea de nudillos (el meñique nace más arriba)
+      const yk = knuckleLine(palmHW(y) * se(sn)) + 0.009
+      const close = y < yk ? Math.sqrt(Math.max(0, 1 - ((y - yk) / 0.0135) ** 2)) : 1
+      const open = v === 0 ? 0.3 : 1
+      let x = palmHT(y) * se(c) * close * open
+      const z = palmHW(y) * se(sn) * close * open
+      const dorsal = Math.max(0, c) ** 2
+      const palmar = Math.max(0, -c) ** 1.5
+      // el dorso es algo más plano y el lado de la palma más mullido
+      x -= 0.0012 * palmar * gauss(y + 0.03, 0.02)
+      let knuckles = 0
+      let tendons = 0
+      for (const f of FINGERS) {
+        knuckles += gauss(z - f.z, 0.0034) * gauss(y - f.k - 0.0025, 0.0042)
+        tendons += gauss(z - f.z * 0.82, 0.0017)
+      }
+      x += dorsal * (0.0019 * knuckles + 0.0005 * tendons * smoothstep(-0.012, -0.024, y) * (1 - smoothstep(-0.048, -0.056, y)))
+      // eminencia tenar (base del pulgar) e hipotenar
+      x -= palmar * (0.0032 * gauss(z - 0.0095, 0.0055) * gauss(y + 0.019, 0.01) + 0.0017 * gauss(z + 0.011, 0.005) * gauss(y + 0.032, 0.013))
+      out.set(x, y, z)
+    },
+    { closedU: true, orient: 'auto' },
+  )
 }
 
-export function handGeometry(curl = 0): THREE.BufferGeometry {
-  const parts: THREE.BufferGeometry[] = []
-  // palma: elipsoide aplanado
-  const palm = ellipsoid(0.0145, 0.036, 0.023, 28, 18)
-  palm.translate(0.0, -0.034, 0.0)
-  parts.push(palm)
-  for (const f of FINGERS) {
-    parts.push(sweep(fingerCurve(f, curl), (t) => f.r * (1 - 0.18 * t), { radial: 12, segments: 8, capEnd: true, capStart: true, ellipse: [0.9, 1] }))
+interface FingerBuild {
+  skin: THREE.BufferGeometry
+  /** marco de la uña: posición, eje hacia la punta y dorso */
+  nail: { at: THREE.Vector3; tip: THREE.Vector3; back: THREE.Vector3; r: number }
+}
+
+/** Dedo con tres falanges, nudillos marcados y yema; `c` = flexión. */
+function fingerGeometry(f: (typeof FINGERS)[number], c: number): FingerBuild {
+  const dir = (a: number) => new THREE.Vector3(-Math.sin(a), -Math.cos(a), -f.z * 0.07)
+  const ang = [c * 0.85, c * 0.85 + c * 1.15, c * 0.85 + c * 1.15 + c * 0.8]
+  const len = PHAL.map((k) => k * f.len)
+  const mcp = new THREE.Vector3(0.0006, f.k, f.z)
+  const d = ang.map((a) => dir(a).normalize())
+  const pip = mcp.clone().addScaledVector(d[0], len[0])
+  const dip = pip.clone().addScaledVector(d[1], len[1])
+  const tip = dip.clone().addScaledVector(d[2], len[2])
+  const back = 0.015
+  const pts = [
+    mcp.clone().addScaledVector(d[0], -back),
+    mcp.clone(),
+    mcp.clone().addScaledVector(d[0], len[0] * 0.5),
+    pip.clone(),
+    pip.clone().addScaledVector(d[1], len[1] * 0.5),
+    dip.clone(),
+    dip.clone().addScaledVector(d[2], len[2] * 0.55),
+    tip.clone(),
+  ]
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal')
+  const L = curve.getLength()
+  const at = (dd: number) => dd / L
+  const vM = at(back)
+  const vP = at(back + len[0])
+  const vD = at(back + len[0] + len[1])
+  const r = f.r
+  const radius = (v: number, a: number) => {
+    const dorsal = Math.max(0, -Math.sin(a)) ** 2
+    const palmar = Math.max(0, Math.sin(a)) ** 2
+    let k = r * (1 - 0.2 * smoothstep(vM, 1, v)) * (1 + 0.1 * (1 - smoothstep(0, vM * 1.5, v)))
+    k *= 1 + 0.06 * gauss(v - vP, 0.03) + 0.04 * gauss(v - vD, 0.025) - 0.03 * gauss(v - (vM + vP) / 2, 0.05)
+    k += dorsal * (0.0011 * gauss(v - vM, 0.035) + 0.0005 * gauss(v - vP, 0.03) + 0.0003 * gauss(v - vD, 0.025))
+    // yemas
+    k += palmar * (0.0004 * gauss(v - (vP + vD) / 2, 0.04) + 0.0005 * gauss(v - (vD + 1) / 2, 0.06))
+    return k
   }
-  // pulgar
-  const thumb = curveOf([
-    [-0.006, -0.018, 0.018],
-    [-0.012, -0.034, 0.03],
-    [-0.016, -0.05, 0.034],
-  ])
-  parts.push(sweep(thumb, (t) => 0.0072 * (1 - 0.2 * t), { radial: 12, segments: 8, capEnd: true, capStart: true }))
-  return merge(parts)
+  const skin = sweep(curve, radius, { radial: 14, segments: 22, capStart: true, capEnd: true, ellipse: [1, 0.86], up: new THREE.Vector3(0, 0, 1) })
+  const nailAt = dip.clone().addScaledVector(d[2], len[2] * 0.26)
+  const backDir = new THREE.Vector3(Math.cos(ang[2]), -Math.sin(ang[2]), 0)
+  return { skin, nail: { at: nailAt, tip: d[2].clone(), back: backDir, r: r * 0.8 * 0.86 } }
+}
+
+/** Pulgar con eminencia en la base; `c` = flexión hacia la palma. */
+function thumbGeometry(c: number): FingerBuild {
+  const k = Math.min(1, c)
+  const pts: [number, number, number][] = [
+    [-0.002, -0.008, 0.009],
+    [-0.005, -0.018, 0.016],
+    [-0.0074, -0.028, 0.0192 - 0.002 * k],
+    [-0.0092 - 0.004 * k, -0.0375 + 0.002 * k, 0.0196 - 0.006 * k],
+    [-0.0102 - 0.007 * k, -0.0462 + 0.004 * k, 0.0186 - 0.011 * k],
+  ]
+  const curve = curveOf(pts)
+  const radius = (v: number, a: number) => {
+    const dorsal = Math.max(0, -Math.sin(a)) ** 2
+    let rr = 0.0063 - 0.0012 * smoothstep(0.15, 1, v) + 0.0012 * gauss(v - 0.12, 0.1)
+    rr += dorsal * 0.0005 * gauss(v - 0.62, 0.06)
+    return rr
+  }
+  const skin = sweep(curve, radius, { radial: 14, segments: 18, capStart: true, capEnd: true, ellipse: [1, 0.88] })
+  const tipDir = curve.getTangentAt(0.88).normalize()
+  const back = new THREE.Vector3(0.3, 0, 1)
+  back.addScaledVector(tipDir, -back.dot(tipDir)).normalize()
+  return { skin, nail: { at: curve.getPointAt(0.8), tip: tipDir, back, r: 0.0052 * 0.88 } }
+}
+
+/** Mano izquierda (local a la muñeca) con la flexión dada: piel y marcos para las uñas. */
+export function handParts(curl: number): { skin: THREE.BufferGeometry; nails: FingerBuild['nail'][] } {
+  const parts = [palmGeometry()]
+  const nails: FingerBuild['nail'][] = []
+  FINGERS.forEach((f, i) => {
+    const fb = fingerGeometry(f, curl * (1 + i * 0.18) + 0.08)
+    parts.push(fb.skin)
+    nails.push(fb.nail)
+  })
+  const th = thumbGeometry(curl)
+  parts.push(th.skin)
+  nails.push(th.nail)
+  return { skin: merge(parts), nails }
+}
+
+/** Matriz que coloca una uña (eje −y hacia la punta, dorso +x) en su dedo. */
+export function nailMatrix(n: FingerBuild['nail']): THREE.Matrix4 {
+  const X = n.back.clone().normalize()
+  const Y = n.tip.clone().negate().normalize()
+  X.addScaledVector(Y, -X.dot(Y)).normalize()
+  const Z = new THREE.Vector3().crossVectors(X, Y)
+  return new THREE.Matrix4().makeBasis(X, Y, Z).setPosition(n.at)
 }
 
 // ───────────────────────── PIES ─────────────────────────
@@ -357,6 +586,36 @@ export function headPoint(dx: number, dy: number, dz: number, shape: FaceShape, 
     z += front * 0.003 * gauss(Math.abs(x) - 0.048, 0.03) * gauss(y - 0.036, 0.01)
   }
   return out.set(x, y, z)
+}
+
+/**
+ * z (relativa al centro de la cabeza) de la superficie frontal en el punto (x, y)
+ * de la cara. Se resuelve invirtiendo headPoint con Newton.
+ */
+export function headSurfaceZ(x: number, y: number, shape: FaceShape): number {
+  let lon = Math.asin(Math.max(-0.99, Math.min(0.99, x / HEAD.rx)))
+  let lat = Math.asin(Math.max(-0.99, Math.min(0.99, y / HEAD.ry)))
+  const p = new THREE.Vector3()
+  const q = new THREE.Vector3()
+  const at = (lo: number, la: number, out: THREE.Vector3) =>
+    headPoint(Math.cos(la) * Math.sin(lo), Math.sin(la), Math.cos(la) * Math.cos(lo), shape, out)
+  for (let i = 0; i < 12; i++) {
+    at(lon, lat, p)
+    const ex = p.x - x
+    const ey = p.y - y
+    if (Math.abs(ex) + Math.abs(ey) < 1e-7) break
+    const e = 1e-4
+    at(lon + e, lat, q)
+    const a = (q.x - p.x) / e
+    const c = (q.y - p.y) / e
+    at(lon, lat + e, q)
+    const b = (q.x - p.x) / e
+    const d = (q.y - p.y) / e
+    const det = a * d - b * c || 1e-9
+    lon -= (d * ex - b * ey) / det
+    lat -= (-c * ex + a * ey) / det
+  }
+  return at(lon, lat, p).z
 }
 
 /** Geometría de la cabeza con UV proyectadas de frente para la cara pintada. */
