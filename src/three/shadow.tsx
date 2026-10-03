@@ -1,5 +1,5 @@
 import { ContactShadows } from '@react-three/drei'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 
 // Sombra bajo la muñeca.
@@ -32,6 +32,7 @@ export function DollShadow({ quality, y, color, opacity = 0.55, scale = 2.2 }: {
     () => new THREE.MeshBasicMaterial({ color, alphaMap: blobTexture(), transparent: true, opacity: opacity * 0.85, depthWrite: false, toneMapped: false }),
     [color, opacity],
   )
+  useEffect(() => () => mat.dispose(), [mat])
   if (quality === 'alta') return <ContactShadows position={[0, y, 0]} opacity={opacity} scale={scale} blur={2.4} far={1.6} resolution={512} color={color} />
   return (
     <mesh position={[0, y + 0.001, 0]} rotation-x={-Math.PI / 2} material={mat} renderOrder={1}>

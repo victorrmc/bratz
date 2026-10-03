@@ -30,12 +30,11 @@ async function measureLoad(rate) {
     await p.goto(base)
     await p.getByTestId('start').waitFor()
     await p.waitForTimeout(500)
-    await p.evaluate(() => performance.mark('rumbo:clic'))
     await p.getByTestId('start').click()
     await p.waitForFunction(() => performance.getEntriesByName('rumbo:3d-listo').length > 0, null, { timeout: 120000, polling: 50 })
     out.push(
       await p.evaluate(() => {
-        const a = performance.getEntriesByName('rumbo:clic')[0].startTime
+        const a = performance.getEntriesByName('rumbo:toque')[0].startTime
         const z = performance.getEntriesByName('rumbo:3d-listo')[0].startTime
         return { s: +((z - a) / 1000).toFixed(2), geo: window.__claraGeo?.source ?? '?' }
       }),

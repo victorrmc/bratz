@@ -131,6 +131,8 @@ export default function App() {
     return (
       <Splash
         onStart={() => {
+          // inicio de la carga 3D (scripts/perf.mjs y scripts/perfil-movil.js miden desde aquí)
+          performance.mark('rumbo:toque')
           audio.unlock()
           audio.click()
           useGame.getState().setAudioReady()
