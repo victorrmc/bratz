@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useGame, type CamPreset, type EditTab } from '../../store/game'
 import { CATEGORIES, ITEMS, ITEM_BY_ID, PATTERNS } from '../../data/items'
 import { HAIR_STYLES } from '../../data/hair'
@@ -7,13 +7,15 @@ import { DOLLS } from '../../data/characters'
 import { CHALLENGE_BY_ID } from '../../data/challenges'
 import { BLUSH_COLORS, CLOTH_COLORS, EYESHADOW_COLORS, GEM_COLORS, HAIR_COLORS, LINER_COLORS, LIP_COLORS, NAIL_COLORS } from '../../data/palette'
 import { FACE_GEMS, LASHES, LINERS, LIP_FINISHES, NAIL_FINISHES, NAIL_SHAPES } from '../../data/beauty'
-import type { Category, ItemDef, Slot } from '../../data/types'
+import type { Category, ItemDef, Slot, StyleTag } from '../../data/types'
 import { isItemUnlocked, unlockHint } from '../../game/economy'
 import { tagLabel } from '../../game/scoring'
+import { COLOR_FAMILIES, EMPTY_FILTER, STYLE_NAMES, availableFacets, filterItems, isFiltering, normalize, type ColorFamily, type ItemFilter } from '../../game/filters'
 import { Btn, IconBtn, Modal, TopBar, useInsetReporter, useInsetTop } from '../kit'
 import { Icon, type IconName } from '../Icon'
 import { ItemGlyph } from '../ItemGlyph'
 import { expressionInfo, nextExpression } from '../expressions'
+import { prefetchThumbs } from '../thumbs'
 import { useView, interaction } from '../../three/view'
 import { audio, buzz } from '../../audio/engine'
 import Onboarding from './Onboarding'
@@ -101,34 +103,62 @@ function Chips<T extends string>({ options, value, onPick, testid }: { options: 
 
 // ───────────────────── Ropa ─────────────────────
 
-function ItemCard({ item }: { item: ItemDef }) {
+const SPARKS = [0, 1, 2, 3, 4, 5, 6, 7]
+
+function ItemCard({ item, onPick }: { item: ItemDef; onPick?: (el: HTMLElement) => void }) {
   const save = useGame((s) => s.save)
   const worn = useGame((s) => s.look.outfit[item.slot]?.itemId === item.id)
   const inst = useGame((s) => s.look.outfit[item.slot])
   const wear = useGame((s) => s.wear)
   const toast = useGame((s) => s.toast)
   const unlocked = isItemUnlocked(item, save)
+  // microinteracción al ponerse o quitarse la prenda (n reinicia la animación)
+  const [fx, setFx] = useState<{ kind: 'on' | 'off' | 'nope'; n: number } | null>(null)
+  useEffect(() => {
+    if (!fx) return
+    const t = window.setTimeout(() => setFx(null), 900)
+    return () => window.clearTimeout(t)
+  }, [fx])
   return (
     <motion.button
-      className={`card ${worn ? 'worn' : ''} ${unlocked ? '' : 'locked'}`}
+      className={`card ${worn ? 'worn' : ''} ${unlocked ? '' : 'locked'} ${fx ? `fx-${fx.kind}` : ''}`}
       whileTap={{ scale: 0.88 }}
       whileHover={{ y: -2 }}
       aria-label={`${item.name}${worn ? ' (puesta)' : ''}${unlocked ? '' : ' (bloqueada)'}`}
       aria-pressed={worn}
       data-testid={`item-${item.id}`}
-      onClick={() => {
+      onClick={(e) => {
         if (!unlocked) {
           audio.error()
+          buzz(8)
+          setFx((f) => ({ kind: 'nope', n: (f?.n ?? 0) + 1 }))
           toast(`${item.name}: ${unlockHint(item)}`)
           return
         }
         audio.sparkle()
-        buzz(14)
+        buzz(worn ? 8 : 16)
+        setFx((f) => ({ kind: worn ? 'off' : 'on', n: (f?.n ?? 0) + 1 }))
+        onPick?.(e.currentTarget)
         wear(item)
       }}
     >
-      <ItemGlyph item={item} color={worn ? inst?.color : undefined} color2={worn ? inst?.color2 : undefined} pattern={worn ? inst?.pattern : undefined} />
+      <span className="glyph-wrap" key={fx ? `${fx.kind}${fx.n}` : 'quieto'}>
+        <ItemGlyph item={item} color={worn ? inst?.color : undefined} color2={worn ? inst?.color2 : undefined} pattern={worn ? inst?.pattern : undefined} />
+      </span>
       <span className="label">{item.name}</span>
+      {fx?.kind === 'on' && (
+        <span className="equip-burst" key={fx.n} aria-hidden="true" data-testid="equip-burst">
+          <span className="ring" />
+          {SPARKS.map((i) => (
+            <span key={i} className="spark" style={{ '--a': `${i * 45 + 20}deg` } as React.CSSProperties} />
+          ))}
+        </span>
+      )}
+      {worn && (
+        <span className="worn-tick" aria-hidden="true">
+          <Icon name="check" />
+        </span>
+      )}
       {item.rarity !== 'comun' && (
         <svg className="badge" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.2 5.8 20.9l1.6-7L2 9.2l7.1-.6z" fill={item.rarity === 'secreta' ? '#c38bff' : '#ffd25a'} stroke="#fff" strokeWidth="1.5" />
@@ -177,42 +207,209 @@ function ItemEditor({ slot }: { slot: Slot }) {
   )
 }
 
+const catName = (i: ItemDef) => CATEGORIES.find((c) => c.id === i.category)?.name ?? ''
+
+function FilterPanel({ filter, setFilter, pool }: { filter: ItemFilter; setFilter: (f: ItemFilter) => void; pool: ItemDef[] }) {
+  const facets = useMemo(() => availableFacets(pool), [pool])
+  // los ya elegidos se siguen mostrando aunque no haya prendas de ese tipo aquí
+  const tags = [...new Set([...facets.tags, ...filter.tags])]
+  const colors = COLOR_FAMILIES.filter((c) => facets.colors.includes(c.id) || filter.colors.includes(c.id))
+  const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v])
+  return (
+    <motion.div className="filter-panel" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} data-testid="filter-panel">
+      <div className="section-title" style={{ marginTop: 2 }}>
+        Estilo
+      </div>
+      <div className="row wrap" style={{ gap: 6 }} role="group" aria-label="Filtrar por estilo">
+        {tags.map((t: StyleTag) => (
+          <motion.button
+            key={t}
+            className={`chip small ${filter.tags.includes(t) ? 'active' : ''}`}
+            whileTap={{ scale: 0.9 }}
+            aria-pressed={filter.tags.includes(t)}
+            data-testid={`filter-tag-${t}`}
+            onClick={() => {
+              audio.click()
+              setFilter({ ...filter, tags: toggle(filter.tags, t) })
+            }}
+          >
+            {STYLE_NAMES[t]}
+          </motion.button>
+        ))}
+      </div>
+      <div className="section-title">Color</div>
+      <div className="row wrap" style={{ gap: 6 }} role="group" aria-label="Filtrar por color">
+        {colors.map((c) => (
+          <motion.button
+            key={c.id}
+            className={`chip small color-chip ${filter.colors.includes(c.id) ? 'active' : ''}`}
+            whileTap={{ scale: 0.9 }}
+            aria-pressed={filter.colors.includes(c.id)}
+            data-testid={`filter-color-${c.id}`}
+            onClick={() => {
+              audio.click()
+              setFilter({ ...filter, colors: toggle(filter.colors, c.id as ColorFamily) })
+            }}
+          >
+            <span className="dot" style={{ background: c.swatch }} />
+            {c.name}
+          </motion.button>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
 function ClothesPanel() {
   const category = useGame((s) => s.category)
   const setCategory = useGame((s) => s.setCategory)
   const outfit = useGame((s) => s.look.outfit)
   const selectedSlot = useGame((s) => s.selectedSlot)
-  const items = useMemo(() => ITEMS.filter((i) => i.category === category), [category])
-  const slotsHere = [...new Set(items.map((i) => i.slot))].filter((s) => outfit[s])
-  const editSlot = selectedSlot && slotsHere.includes(selectedSlot) ? selectedSlot : slotsHere[0]
+  const [filter, setFilter] = useState<ItemFilter>(EMPTY_FILTER)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const input = useRef<HTMLInputElement>(null)
+  const searching = normalize(filter.query) !== ''
+  // con texto se busca en todo el vestidor; sin él, dentro de la categoría
+  const pool = useMemo(() => (searching ? ITEMS : ITEMS.filter((i) => i.category === category)), [searching, category])
+  const items = useMemo(() => filterItems(pool, filter, catName), [pool, filter])
+  const filtering = isFiltering(filter)
+  const nFilters = filter.tags.length + filter.colors.length
+  const wornCats = useMemo(() => new Set(Object.values(outfit).map((o) => (o ? ITEM_BY_ID[o.itemId]?.category : undefined))), [outfit])
+  const slotsHere = [...new Set(ITEMS.filter((i) => i.category === category).map((i) => i.slot))].filter((s) => outfit[s])
+  const editSlot = searching ? (selectedSlot && outfit[selectedSlot] ? selectedSlot : undefined) : selectedSlot && slotsHere.includes(selectedSlot) ? selectedSlot : slotsHere[0]
+  const scroller = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0 })
+  }, [category, filter])
+  // al ponerse una prenda aparece (o cambia) su editor encima de la lista:
+  // se compensa el desplazamiento para que la tarjeta tocada no salte
+  const anchor = useRef<{ id: string; top: number } | null>(null)
+  const keepInView = useCallback((el: HTMLElement) => {
+    anchor.current = { id: el.dataset.testid ?? '', top: el.getBoundingClientRect().top }
+  }, [])
+  useLayoutEffect(() => {
+    const a = anchor.current
+    anchor.current = null
+    const sc = scroller.current
+    if (!a || !sc) return
+    const el = sc.querySelector<HTMLElement>(`[data-testid="${a.id}"]`)
+    if (el) sc.scrollTop += el.getBoundingClientRect().top - a.top
+  }, [outfit])
+  const clear = () => {
+    audio.click()
+    setFilter(EMPTY_FILTER)
+  }
+  const closeSearch = () => {
+    audio.click()
+    setFilter((f) => ({ ...f, query: '' }))
+    setSearchOpen(false)
+  }
+  const filtersBtn = (
+    <motion.button
+      className={`chip ${filtersOpen || nFilters ? 'active' : ''}`}
+      whileTap={{ scale: 0.9 }}
+      aria-expanded={filtersOpen}
+      aria-label={`Filtros por estilo y color${nFilters ? ` (${nFilters} activos)` : ''}`}
+      data-testid="filters-toggle"
+      onClick={() => {
+        audio.click()
+        setFiltersOpen((o) => !o)
+      }}
+    >
+      <Icon name="filter" />
+      {nFilters > 0 && <span className="count-badge">{nFilters}</span>}
+    </motion.button>
+  )
   return (
     <>
-      <div className="chips" role="tablist" aria-label="Categorías">
-        {CATEGORIES.map((c) => (
+      {searchOpen ? (
+        <div className="chips search-row">
+          <label className="search-box">
+            <Icon name="search" />
+            <input
+              ref={input}
+              type="search"
+              value={filter.query}
+              placeholder="Busca prenda, estilo o color"
+              aria-label="Buscar en el vestidor"
+              enterKeyHint="search"
+              autoComplete="off"
+              data-testid="search"
+              onChange={(e) => setFilter((f) => ({ ...f, query: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Escape' && closeSearch()}
+            />
+          </label>
+          {filtersBtn}
+          <motion.button className="chip" whileTap={{ scale: 0.9 }} aria-label="Cerrar búsqueda" data-testid="search-close" onClick={closeSearch}>
+            <Icon name="close" />
+          </motion.button>
+        </div>
+      ) : (
+        <div className="chips" role="tablist" aria-label="Categorías">
           <motion.button
-            key={c.id}
-            role="tab"
-            aria-selected={c.id === category}
-            className={`chip ${c.id === category ? 'active' : ''}`}
+            className="chip"
             whileTap={{ scale: 0.9 }}
-            data-testid={`cat-${c.id}`}
+            aria-label="Buscar en el vestidor"
+            data-testid="search-toggle"
             onClick={() => {
               audio.click()
-              setCategory(c.id)
+              setSearchOpen(true)
+              requestAnimationFrame(() => input.current?.focus())
             }}
           >
-            <Icon name={CAT_ICON[c.id]} />
-            {c.name}
+            <Icon name="search" />
           </motion.button>
-        ))}
-      </div>
-      <div className="scroll">
-        {editSlot && <ItemEditor slot={editSlot} />}
-        <div className="grid">
-          {items.map((i) => (
-            <ItemCard key={i.id} item={i} />
+          {filtersBtn}
+          {CATEGORIES.map((c) => (
+            <motion.button
+              key={c.id}
+              role="tab"
+              aria-selected={c.id === category}
+              className={`chip ${c.id === category ? 'active' : ''}`}
+              whileTap={{ scale: 0.9 }}
+              data-testid={`cat-${c.id}`}
+              onClick={() => {
+                audio.click()
+                setCategory(c.id)
+              }}
+            >
+              <Icon name={CAT_ICON[c.id]} />
+              {c.name}
+              {wornCats.has(c.id) && <span className="worn-dot" aria-hidden="true" />}
+            </motion.button>
           ))}
         </div>
+      )}
+      <div className="scroll" ref={scroller}>
+        {filtersOpen && <FilterPanel filter={filter} setFilter={setFilter} pool={pool} />}
+        {filtering && (
+          <div className="filter-status" aria-live="polite">
+            <span data-testid="filter-count">
+              {items.length === 1 ? '1 prenda' : `${items.length} prendas`}
+              {searching ? ' en todo el vestidor' : ''}
+            </span>
+            <Btn variant="secondary" size="small" onClick={clear} data-testid="filters-clear">
+              Quitar filtros
+            </Btn>
+          </div>
+        )}
+        {editSlot && !filtersOpen && <ItemEditor slot={editSlot} />}
+        {items.length ? (
+          <div className="grid">
+            {items.map((i) => (
+              <ItemCard key={i.id} item={i} onPick={keepInView} />
+            ))}
+          </div>
+        ) : (
+          <div className="filter-empty" data-testid="filter-empty">
+            <Icon name="hanger" />
+            <p>No hay ninguna prenda así… ¡todavía!</p>
+            <Btn variant="secondary" size="small" sound="none" onClick={clear}>
+              Quitar filtros
+            </Btn>
+          </div>
+        )}
       </div>
     </>
   )
@@ -405,6 +602,11 @@ export default function StudioScreen({ mode }: { mode: 'studio' | 'challenge' })
   useInsetTop(mode === 'challenge' ? 130 : 112)
   useInsetReporter(sheet, reporter)
   const doll = DOLLS.find((d) => d.id === dollId)!
+  useEffect(() => {
+    // las miniaturas del resto del catálogo se generan en segundo plano
+    const t = window.setTimeout(() => prefetchThumbs(ITEMS), 1500)
+    return () => window.clearTimeout(t)
+  }, [])
   return (
     <>
       <TopBar title={mode === 'challenge' ? undefined : 'Estudio'}>
