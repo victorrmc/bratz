@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useGame, type CamPreset, type EditTab } from '../../store/game'
 import { CATEGORIES, ITEMS, ITEM_BY_ID, PATTERNS } from '../../data/items'
 import { HAIR_STYLES } from '../../data/hair'
@@ -383,7 +383,8 @@ function ChallengeBanner() {
   )
 }
 
-export default function StudioScreen({ mode }: { mode: 'studio' | 'challenge' }) {
+/** En el modo historia, Story.tsx aporta el cartel del capítulo y el envío al jurado. */
+export default function StudioScreen({ mode, banner, onSubmit }: { mode: 'studio' | 'challenge' | 'story'; banner?: ReactNode; onSubmit?: () => void }) {
   const tab = useGame((s) => s.tab)
   const setTab = useGame((s) => s.setTab)
   const cam = useGame((s) => s.cam)
@@ -402,15 +403,16 @@ export default function StudioScreen({ mode }: { mode: 'studio' | 'challenge' })
   const sheet = useRef<HTMLDivElement>(null)
   const setView = useView((s) => s.set)
   const reporter = useCallback((b: number, r: number) => setView({ insetBottom: b, insetRight: r }), [setView])
-  useInsetTop(mode === 'challenge' ? 130 : 112)
+  useInsetTop(mode === 'story' ? 150 : mode === 'challenge' ? 130 : 112)
   useInsetReporter(sheet, reporter)
   const doll = DOLLS.find((d) => d.id === dollId)!
   return (
     <>
-      <TopBar title={mode === 'challenge' ? undefined : 'Estudio'}>
+      <TopBar title={mode === 'studio' ? 'Estudio' : undefined}>
       </TopBar>
       {mode === 'challenge' && <ChallengeBanner />}
-      <div className="side-tools" style={mode === 'challenge' ? { top: 'calc(var(--safe-t) + 136px)' } : undefined}>
+      {mode === 'story' && banner}
+      <div className="side-tools" style={mode !== 'studio' ? { top: 'calc(var(--safe-t) + 136px)' } : undefined}>
         {CAMS.map((c) => (
           <IconBtn key={c.id} icon={c.icon} label={c.label} active={cam === c.id} onClick={() => setCam(c.id)} data-testid={`cam-${c.id}`} />
         ))}
@@ -518,9 +520,10 @@ export default function StudioScreen({ mode }: { mode: 'studio' | 'challenge' })
               sound="sparkle"
               onClick={() => {
                 audio.fanfare()
-                submit()
+                if (onSubmit) onSubmit()
+                else submit()
               }}
-              data-testid="submit-challenge"
+              data-testid={mode === 'story' ? 'submit-chapter' : 'submit-challenge'}
             >
               <Icon name="star" width={22} height={22} /> Presentar al jurado
             </Btn>

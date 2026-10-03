@@ -77,9 +77,10 @@ function Doll({ quality, holder, rigRef, controlledPose }: { quality: Q; holder:
   }, [rig, look, expression, screen])
   // reacción a la nota del jurado (saltito, aplauso, expresión)
   const jury = useGame((s) => s.jury)
+  const storyJury = useGame((s) => s.screen === 'story' && s.storyPhase === 'jury')
   useEffect(() => {
-    if (screen === 'jury' && jury) rig.react(jury.score.stars)
-  }, [rig, screen, jury])
+    if ((screen === 'jury' || storyJury) && jury) rig.react(jury.score.stars)
+  }, [rig, screen, jury, storyJury])
   useEffect(() => {
     if (controlledPose) return
     if (pose === 'walk') rig.setWalking(true)
@@ -100,6 +101,8 @@ const PRESETS: Record<string, { target: [number, number, number]; height: number
   hero: { target: [0, 0.98, 0], height: 1.15, frameH: 2.0, frameW: 1.3 },
   photo: { target: [0, 0.95, 0], height: 1.1, frameH: 2.05, frameW: 1.1 },
   jury: { target: [0, 1.0, 0], height: 1.2, frameH: 2.15, frameW: 1.2 },
+  // plano general de las viñetas de la historia: se ve más escenario
+  story: { target: [0, 1.05, 0], height: 1.3, frameH: 2.7, frameW: 2.0 },
 }
 
 function CameraRig({ preset, orbit = false, interactive = true }: { preset: string; orbit?: boolean; interactive?: boolean }) {
@@ -288,6 +291,7 @@ function SceneContent({ quality }: { quality: Q }) {
   const sparkle = useGame((s) => s.sparkle)
   const confetti = useGame((s) => s.confetti)
   const challengeId = useGame((s) => s.challengeId)
+  const storyPhase = useGame((s) => s.storyPhase)
   const holder = useRef<THREE.Group>(null)
   const rigRef = useRef<DollRig | null>(null)
   const isRunway = screen === 'runway' || screen === 'ending'
@@ -304,8 +308,20 @@ function SceneContent({ quality }: { quality: Q }) {
       y = 0.08
       camera = <CameraRig preset="hero" orbit interactive={false} />
       break
+    case 'story':
+      // modo historia: el estudio para vestirse y el escenario del capítulo para todo lo demás
+      if (storyPhase === 'dress') {
+        scene = <StudioScene quality={quality} />
+        y = 0.06
+        camera = <CameraRig preset={cam} />
+      } else {
+        scene = <StageScene id={stage} quality={quality} />
+        camera = <CameraRig preset={storyPhase === 'jury' ? 'jury' : storyPhase === 'memory' ? 'photo' : 'story'} orbit={storyPhase === 'intro' || storyPhase === 'outro' || storyPhase === 'map'} interactive={false} />
+      }
+      break
     case 'studio':
     case 'challenge':
+    case 'memories':
     case 'wardrobe':
     case 'shop':
     case 'challenges':

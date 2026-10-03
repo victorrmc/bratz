@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useCallback, useRef, useState, type ReactElement } from 'react'
+import { useCallback, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { useView } from '../../three/view'
 import { useGame } from '../../store/game'
 import { CHALLENGES, JUDGES } from '../../data/challenges'
@@ -140,7 +140,8 @@ const JUDGE_FACE: Record<string, ReactElement> = {
   ),
 }
 
-export function JuryScreen() {
+/** El jurado. El modo historia lo reutiliza con su propio aviso (`header`) y sus botones (`actions`). */
+export function JuryScreen({ header, actions }: { header?: ReactNode; actions?: ReactNode } = {}) {
   const jury = useGame((s) => s.jury)
   const go = useGame((s) => s.go)
   const startChallenge = useGame((s) => s.startChallenge)
@@ -169,6 +170,7 @@ export function JuryScreen() {
         transition={{ type: 'spring', stiffness: 140, damping: 18 }}
         style={{ position: 'fixed', left: 10, right: 10, bottom: 'calc(var(--safe-b) + 10px)', maxHeight: '58vh', overflowY: 'auto', padding: 14, margin: '0 auto', maxWidth: 560 }}
       >
+        {header}
         <div className="row" style={{ justifyContent: 'center', flexDirection: 'column' }}>
           <Stars n={sc.stars} size={40} animate />
           <span className="sr-only" data-testid="jury-stars">
@@ -212,12 +214,16 @@ export function JuryScreen() {
           )}
         </div>
         <div className="row center wrap" style={{ marginTop: 12 }}>
-          <Btn variant="secondary" onClick={() => startChallenge(jury.challengeId)} data-testid="retry">
-            Repetir
-          </Btn>
-          <Btn onClick={() => go('challenges')} data-testid="to-challenges">
-            Más retos
-          </Btn>
+          {actions ?? (
+            <>
+              <Btn variant="secondary" onClick={() => startChallenge(jury.challengeId)} data-testid="retry">
+                Repetir
+              </Btn>
+              <Btn onClick={() => go('challenges')} data-testid="to-challenges">
+                Más retos
+              </Btn>
+            </>
+          )}
         </div>
       </motion.div>
     </>
