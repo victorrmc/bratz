@@ -39,7 +39,7 @@ export const STORY_TEXT = {
   subtitle: 'Nuestra mudanza en cinco capítulos',
   menuLabel: 'Historia',
   albumLabel: 'Recuerdos',
-  albumTitle: 'Álbum de recuerdos',
+  albumTitle: 'Nuestro álbum',
   albumEmpty: 'Todavía no hay recuerdos. ¡Empieza la historia y llenemos este álbum juntos!',
   locked: 'Termina el capítulo anterior para abrir este',
   helpButton: '¿Me ayudas, Víctor?',
@@ -63,7 +63,7 @@ export const CHAPTERS: ChapterDef[] = [
     number: 1,
     title: 'Hacer la maleta',
     stage: 'room',
-    icon: 'bag',
+    icon: 'hanger',
     intro: {
       title: 'Capítulo 1 · Hacer la maleta',
       lines: ['Cajas por todas partes, cinta de embalar y una lista que no se acaba.', 'Lo primero: un look cómodo para el viaje… y que no falte el bolso.'],

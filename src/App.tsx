@@ -23,6 +23,8 @@ const WardrobeScreen = lazy(() => import('./ui/screens/Misc').then((m) => ({ def
 const ShopScreen = lazy(() => import('./ui/screens/Misc').then((m) => ({ default: m.ShopScreen })))
 const EndingScreen = lazy(() => import('./ui/screens/Misc').then((m) => ({ default: m.EndingScreen })))
 const LetterScreen = lazy(() => import('./ui/screens/Misc').then((m) => ({ default: m.LetterScreen })))
+const StoryScreen = lazy(() => import('./ui/screens/Story'))
+const MemoriesScreen = lazy(() => import('./ui/screens/Story').then((m) => ({ default: m.MemoriesScreen })))
 const DebugPanel = lazy(() => import('./ui/Debug'))
 
 export function hasWebGL(): boolean {
@@ -111,6 +113,12 @@ function ScreenRouter() {
       break
     case 'letter':
       node = <LetterScreen />
+      break
+    case 'story':
+      node = <StoryScreen />
+      break
+    case 'memories':
+      node = <MemoriesScreen />
       break
   }
   // Sin animación de salida: el cambio de pantalla es inmediato y nunca se queda a medias

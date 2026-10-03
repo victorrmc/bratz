@@ -3,6 +3,8 @@ import { useCallback, useRef, useState } from 'react'
 import { useView } from '../../three/view'
 import { useGame, type Screen } from '../../store/game'
 import { STORY } from '../../data/story'
+import { STORY_TEXT } from '../../data/chapters'
+import { progressLabel } from '../../game/story'
 import { Btn, AudioToggle, CoinCounter, Modal, useInsetReporter, useInsetTop } from '../kit'
 import { Icon, type IconName } from '../Icon'
 import { audio, buzz } from '../../audio/engine'
@@ -22,6 +24,8 @@ export default function HomeScreen() {
   const taps = useGame((s) => s.heartTaps)
   const endingUnlocked = useGame((s) => s.save.endingUnlocked)
   const onboardingDone = useGame((s) => s.save.onboardingDone)
+  const storyProgress = useGame((s) => progressLabel(s.save.story))
+  const openStory = useGame((s) => s.openStory)
   const [secretOpen, setSecretOpen] = useState(false)
   const nav = useRef<HTMLElement>(null)
   const setView = useView((s) => s.set)
@@ -90,6 +94,21 @@ export default function HomeScreen() {
             <Icon name="plane" width={24} height={24} /> Final secreto
           </Btn>
         )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 8 }}>
+          <Btn variant="gold" sound="sparkle" onClick={openStory} data-testid="menu-story" aria-label={`${STORY_TEXT.menuLabel}, ${storyProgress} capítulos`} style={{ gridColumn: 'span 2', minHeight: 56, borderRadius: 20, justifyContent: 'space-between', padding: '6px 14px' }}>
+            <span className="row" style={{ gap: 8 }}>
+              <Icon name="sunset" width={26} height={26} />
+              <span style={{ fontSize: 17 }}>{STORY_TEXT.menuLabel}</span>
+            </span>
+            <span data-testid="menu-story-progress" style={{ fontSize: 15, background: 'rgba(255,255,255,.55)', borderRadius: 999, padding: '2px 10px' }}>
+              {storyProgress}
+            </span>
+          </Btn>
+          <Btn variant="secondary" onClick={() => go('memories')} data-testid="menu-memories" style={{ minHeight: 56, borderRadius: 20, padding: '6px 4px', gap: 6 }}>
+            <Icon name="frame" width={24} height={24} />
+            <span style={{ fontSize: 15 }}>{STORY_TEXT.albumLabel}</span>
+          </Btn>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
           {MENU.map((m, i) => (
             <Btn key={m.screen} variant={i === 0 ? 'primary' : 'secondary'} onClick={() => start(m.screen)} data-testid={m.testid} style={{ flexDirection: 'column', gap: 2, minHeight: 72, padding: '6px 4px', borderRadius: 20 }}>
