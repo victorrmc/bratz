@@ -7,6 +7,7 @@ import { curveOf, gauss, onDetailChange, smoothstep, surface, sweep, table, toru
 import { hairTexture } from './textures'
 import { getMaterialQuality } from './materials'
 import type { Piece } from './clothes/wear'
+import { keyed } from './geoCache'
 
 // Peinados construidos por piezas. Cada vértice lleva tres atributos:
 // - `hairT` (0 = raíz, 1 = punta) para las puntas de color fantasía,
@@ -1086,10 +1087,14 @@ onDetailChange(() => geoCache.clear())
 function cached(key: string, make: () => THREE.BufferGeometry, nodes?: () => THREE.Vector3[]) {
   let g = geoCache.get(key)
   if (!g) {
-    g = make()
-    if (!g.getAttribute('hairT')) withT(g, () => 0)
-    if (!g.getAttribute('hairDir')) strandAttrs(g)
-    if (nodes) skinTo(g, nodes())
+    // caché persistente (IndexedDB): en la siguiente visita no se regenera
+    g = keyed(`pelo|${key}`, () => {
+      const n = make()
+      if (!n.getAttribute('hairT')) withT(n, () => 0)
+      if (!n.getAttribute('hairDir')) strandAttrs(n)
+      if (nodes) skinTo(n, nodes())
+      return n
+    })
     geoCache.set(key, g)
   }
   return g
