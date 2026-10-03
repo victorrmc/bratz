@@ -8,6 +8,7 @@ import { applyChallengeResult, availableItems, buyItem, isItemUnlocked, register
 import { clearSave, defaultSave, loadSave, writeSave, type Quality, type SaveData } from '../game/save'
 import { addLook, deleteLook, duplicateLook, renameLook } from '../game/wardrobe'
 import { scoreLook, juryComments, type ScoreBreakdown } from '../game/scoring'
+import { createStorySlice, type StorySlice } from './story'
 
 export type Screen =
   | 'home'
@@ -21,6 +22,8 @@ export type Screen =
   | 'shop'
   | 'ending'
   | 'letter'
+  | 'story'
+  | 'memories'
 
 export type CamPreset = 'cuerpo' | 'cara' | 'manos' | 'pies'
 export type EditTab = 'ropa' | 'pelo' | 'maquillaje' | 'unas'
@@ -38,7 +41,7 @@ export interface Toast {
   kind?: 'info' | 'success' | 'unlock'
 }
 
-interface State {
+export interface State extends StorySlice {
   save: SaveData
   screen: Screen
   prevScreen: Screen
@@ -113,6 +116,7 @@ function persist(s: SaveData) {
 let toastId = 0
 
 export const useGame = create<State>((set, get) => ({
+  ...createStorySlice(set, get),
   save: initial,
   screen: 'home',
   prevScreen: 'home',
@@ -141,6 +145,7 @@ export const useGame = create<State>((set, get) => ({
   go: (screen) => set((st) => ({ screen, prevScreen: st.screen, previewItem: null, pose: screen === 'runway' || screen === 'ending' ? 'walk' : st.pose === 'walk' ? 'idle' : st.pose })),
   back: () => {
     const st = get()
+    if (st.screen === 'story' && st.storyPhase !== 'map') return st.openStory()
     const map: Partial<Record<Screen, Screen>> = {
       challenge: 'challenges',
       jury: 'challenges',
@@ -260,6 +265,7 @@ export const useGame = create<State>((set, get) => ({
   },
   debugReset: () => {
     clearSave()
+    void get().resetStoryMemories()
     const save = defaultSave()
     set({ save, look: defaultLookFor(save.activeDoll), screen: 'home', onboardingStep: 0 })
   },
