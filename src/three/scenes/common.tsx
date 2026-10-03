@@ -2,7 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { MeshReflectorMaterial } from '@react-three/drei'
 import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { extrude, heartShape, starShape } from '../geo'
+import { extrude, getDetail, heartShape, starShape } from '../geo'
 import { patternTexture } from '../textures'
 
 // Piezas comunes de escenografía.
@@ -87,13 +87,14 @@ export function Podium({ color = '#ffb3d9', radius = 0.6, height = 0.06 }: { col
   )
 }
 
+// una versión por nivel de detalle (en calidad baja, con menos segmentos)
 const heartGeo = (() => {
-  let g: THREE.BufferGeometry | null = null
-  return () => (g ??= extrude(heartShape(0.5), 0.22, 0.12, 20))
+  const g: Record<string, THREE.BufferGeometry> = {}
+  return () => (g[String(getDetail() < 0.5)] ??= extrude(heartShape(0.5), 0.22, 0.12, 20))
 })()
 const starGeo = (() => {
-  let g: THREE.BufferGeometry | null = null
-  return () => (g ??= extrude(starShape(0.5, 0.48), 0.14, 0.08, 10))
+  const g: Record<string, THREE.BufferGeometry> = {}
+  return () => (g[String(getDetail() < 0.5)] ??= extrude(starShape(0.5, 0.48), 0.14, 0.08, 10))
 })()
 
 export function FloatingShape({ kind, position, scale = 1, color, speed = 1, emissive = 0 }: { kind: 'heart' | 'star'; position: [number, number, number]; scale?: number; color: string; speed?: number; emissive?: number }) {
@@ -117,7 +118,9 @@ export function FloatingShape({ kind, position, scale = 1, color, speed = 1, emi
 /** Hilera de bombillas (camerino, guirnaldas). */
 export function Bulbs({ points, color = '#fff2d6', size = 0.035, intensity = 2.2 }: { points: [number, number, number][]; color?: string; size?: number; intensity?: number }) {
   const ref = useRef<THREE.InstancedMesh>(null)
-  const geo = useMemo(() => new THREE.SphereGeometry(size, 12, 8), [size])
+  // en calidad baja cada bombilla ocupa un par de píxeles: basta una esfera tosca
+  const low = getDetail() < 0.5
+  const geo = useMemo(() => (low ? new THREE.SphereGeometry(size, 6, 4) : new THREE.SphereGeometry(size, 12, 8)), [size, low])
   const mat = useMemo(() => new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity), toneMapped: false }), [color, intensity])
   useMemo(() => {
     requestAnimationFrame(() => {
@@ -127,7 +130,8 @@ export function Bulbs({ points, color = '#fff2d6', size = 0.035, intensity = 2.2
       points.forEach((p, i) => m.setMatrixAt(i, mtx.makeTranslation(p[0], p[1], p[2])))
       m.instanceMatrix.needsUpdate = true
     })
-  }, [points])
+    // con otra geometría r3f crea otro InstancedMesh: hay que volver a colocarlas
+  }, [points, geo])
   return <instancedMesh ref={ref} args={[geo, mat, points.length]} frustumCulled={false} />
 }
 
