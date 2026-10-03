@@ -1,7 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { PerformanceMonitor } from '@react-three/drei'
-import { Bloom, EffectComposer, FXAA, SMAA, ToneMapping, Vignette } from '@react-three/postprocessing'
-import { ToneMappingMode, type EffectComposer as EffectComposerImpl } from 'postprocessing'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useGame } from '../store/game'
@@ -11,7 +9,10 @@ import { CHALLENGE_BY_ID } from '../data/challenges'
 import { defaultLookFor, equip } from '../game/look'
 import { DollRig } from './DollRig'
 import { setMaterialQuality } from './materials'
+import { setEnvQuality } from './env'
+import { getComposer } from './composer'
 import { setDetail } from './geo'
+import { preloadDollGeometry } from './dollGeoLoader'
 import { Confetti, SparkleBurst } from './effects'
 import { interaction, useView } from './view'
 import type { Look } from '../data/types'
@@ -20,12 +21,12 @@ const StudioScene = lazy(() => import('./scenes/Studio'))
 const HomeScene = lazy(() => import('./scenes/Home'))
 const StageScene = lazy(() => import('./scenes/Stages'))
 const RunwayScene = lazy(() => import('./scenes/Runway'))
+// El posproceso va en su propio trozo: solo se descarga en calidad alta.
+const PostEffects = lazy(() => import('./post'))
 
 type Q = 'baja' | 'media' | 'alta'
 /** El lienzo se mete un poco bajo el borde redondeado del panel inferior. */
 const CANVAS_OVERLAP = 24
-
-let composerRef: EffectComposerImpl | null = null
 
 // ───────────────────── Muñeca ─────────────────────
 
@@ -51,13 +52,40 @@ function useDollLook(): { look: Look; pose: string } {
   }, [screen, look, save, preview, pose])
 }
 
-function Doll({ quality, holder, rigRef, controlledPose }: { quality: Q; holder: React.RefObject<THREE.Group | null>; rigRef: React.MutableRefObject<DollRig | null>; controlledPose: boolean }) {
+type DollProps = { quality: Q; holder: React.RefObject<THREE.Group | null>; rigRef: React.MutableRefObject<DollRig | null>; controlledPose: boolean }
+
+const detailFor = (q: Q) => (q === 'alta' ? 1 : q === 'media' ? 0.75 : 0.3)
+
+/**
+ * La primera vez espera a la geometría base de la muñeca: sale de IndexedDB si ya
+ * se generó en otra visita o la genera un Web Worker mientras se monta la escena.
+ * Los cambios posteriores (otra muñeca, otra calidad) se construyen al momento
+ * como antes, aprovechando lo que haya en caché.
+ */
+function Doll(props: DollProps) {
+  const dollId = useDollLook().look.dollId
+  const doll = DOLL_BY_ID[dollId] ?? DOLL_BY_ID[PROTAGONIST_ID]
+  const detail = detailFor(props.quality)
+  const [geoReady, setGeoReady] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void preloadDollGeometry(detail, [doll.face.lipFullness]).then(() => {
+      if (alive) setGeoReady(true)
+    })
+    return () => {
+      alive = false
+    }
+  }, [detail, doll])
+  return geoReady ? <DollView {...props} /> : null
+}
+
+function DollView({ quality, holder, rigRef, controlledPose }: DollProps) {
   const { look, pose } = useDollLook()
   const expression = useGame((s) => s.expression)
   const screen = useGame((s) => s.screen)
   const rig = useMemo(() => {
     setMaterialQuality(quality)
-    setDetail(quality === 'alta' ? 1 : quality === 'media' ? 0.75 : 0.3)
+    setDetail(detailFor(quality))
     return new DollRig(DOLL_BY_ID[look.dollId] ?? DOLL_BY_ID[PROTAGONIST_ID])
   }, [look.dollId, quality])
   useEffect(() => {
@@ -210,7 +238,8 @@ function CaptureBridge() {
     interaction.camera = camera
     interaction.capture = ({ w, h, type = 'image/png', quality = 0.92, post = true }) => {
       try {
-        if (post && composerRef) composerRef.render()
+        const composer = getComposer()
+        if (post && composer) composer.render()
         else gl.render(scene, camera)
         const src = gl.domElement
         const out = document.createElement('canvas')
@@ -251,31 +280,63 @@ function FpsMeter() {
   return null
 }
 
+/**
+ * Avisa de que el 3D está listo. Cuando aparece la muñeca, sus shaders se
+ * compilan con compileAsync mientras sigue oculta (en los móviles con
+ * KHR_parallel_shader_compile eso no bloquea el hilo principal) y se da por
+ * lista tras tres fotogramas ya con ella en pantalla.
+ */
 function ReadySignal() {
+  const { gl, scene, camera } = useThree()
   const set = useView((s) => s.set)
-  const n = useRef(0)
+  const st = useRef<{ phase: 'wait' | 'compiling' | 'frames' | 'done'; n: number }>({ phase: 'wait', n: 0 })
   useFrame(() => {
-    n.current++
-    if (n.current === 3) set({ ready: true, progress: 1 })
+    const s = st.current
+    const rig = interaction.rig as DollRig | null
+    if (s.phase === 'done' || !rig) return
+    if (s.phase === 'wait') {
+      // sin la extensión, compileAsync no aporta nada (y three lo avisa por consola)
+      if (!gl.extensions.has('KHR_parallel_shader_compile')) {
+        s.phase = 'frames'
+        return
+      }
+      s.phase = 'compiling'
+      rig.root.visible = false
+      const show = () => {
+        rig.root.visible = true
+        s.phase = 'frames'
+      }
+      gl.compileAsync(scene, camera).then(show, show)
+      return
+    }
+    if (s.phase === 'frames' && ++s.n === 3) {
+      s.phase = 'done'
+      set({ ready: true, progress: 1 })
+      performance.mark('rumbo:3d-listo')
+    }
   })
   return null
 }
 
+/**
+ * Posproceso (bloom, antialiasing, viñeta): solo en calidad alta. En media su
+ * coste (varias pasadas a pantalla completa) no compensa en gama media; el tono
+ * ACES lo sigue aplicando el renderer. Se monta un poco después de que la muñeca
+ * esté en pantalla, para que compilar sus shaders no retrase la carga.
+ */
 function Post({ quality }: { quality: Q }) {
-  if (quality === 'baja') return null
+  const ready = useView((s) => s.ready)
+  const [late, setLate] = useState(false)
+  useEffect(() => {
+    if (!ready || quality !== 'alta') return
+    const t = setTimeout(() => setLate(true), 600)
+    return () => clearTimeout(t)
+  }, [ready, quality])
+  if (quality !== 'alta' || !late) return null
   return (
-    <EffectComposer
-      ref={(c) => {
-        composerRef = (c as unknown as EffectComposerImpl) ?? null
-      }}
-      multisampling={0}
-      enableNormalPass={false}
-    >
-      <Bloom mipmapBlur intensity={quality === 'alta' ? 0.6 : 0.45} luminanceThreshold={0.88} luminanceSmoothing={0.2} radius={0.7} />
-      {quality === 'alta' ? <SMAA /> : <FXAA />}
-      <Vignette offset={0.32} darkness={0.42} />
-      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-    </EffectComposer>
+    <Suspense fallback={null}>
+      <PostEffects quality={quality} />
+    </Suspense>
   )
 }
 
@@ -382,6 +443,9 @@ export default function Stage3D() {
   useEffect(() => {
     if (forced) setDpr(forced)
   }, [forced])
+  // síncrono: los escenarios lo leen al montarse (entorno y nivel de detalle)
+  setEnvQuality(quality)
+  setDetail(detailFor(quality))
   useEffect(() => {
     setQuality(quality)
     document.documentElement.classList.toggle('hq', quality === 'alta')
@@ -404,7 +468,8 @@ export default function Stage3D() {
       {!forced && <PerformanceMonitor
         ms={200}
         iterations={5}
-        bounds={() => [32, 55]}
+        // objetivo: 45 fps o más; si sobra margen se sube la resolución
+        bounds={() => [45, 58]}
         flipflops={6}
         onIncline={() => setDpr((d) => Math.min(maxDpr, d + 0.2))}
         onDecline={() =>
