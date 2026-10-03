@@ -14,6 +14,14 @@
 6. **Tienda**: con las monedas iniciales puedes comprar el *Top de crochet ibicenco* (55).
 7. **Pasarela**: Clara desfila con el look actual.
 8. **Armario**: el look guardado aparece con su miniatura. Puedes renombrarlo, duplicarlo o borrarlo.
+9. **Historia** (5 min): en la portada, pulsa **Historia** (muestra el progreso, 0/5 al empezar).
+   - Elige el capítulo 1. Lee la viñeta y pulsa **¡A vestirse!**.
+   - Cumple el look obligatorio del cartel (o pulsa **¿Me ayudas, Víctor?**) y pulsa **Presentar al jurado**.
+   - Con 3 estrellas o más, pulsa **Guardar el recuerdo**: Clara posa y se hace la foto sola. Después sale la viñeta de cierre.
+   - Se abre el capítulo siguiente. El 4 es la cena nocturna en **Dalt Vila**.
+   - Al terminar el 5, **Ver el final** lleva a la pasarela y la carta.
+   - Vuelve a la portada y pulsa **Recuerdos**: están las fotos de cada capítulo.
+   - Recarga la página: el progreso y las fotos siguen ahí.
 
 ## Instalarlo y jugar sin conexión
 
@@ -26,10 +34,11 @@
 - **Modo debug:** añade `?debug=1` a la URL (por ejemplo `https://victorrmc.github.io/bratz/?debug=1`). Aparece una pastilla «FPS» a la izquierda; tócala para ver las opciones:
   - **Desbloquear todo**: monedas, prendas especiales y secretas, y todos los retos.
   - **Saltar al final**: va directamente a la pasarela final y a la carta.
-  - **Resetear guardado**: vuelve a empezar desde cero (útil antes de dárselo).
+  - **Resetear guardado**: vuelve a empezar desde cero, incluidos la historia y el álbum de recuerdos (útil antes de dárselo).
   - **Calidad**: auto / baja / media / alta.
 
 ## Antes de regalarlo
 
 - Abre `?debug=1` y pulsa **Resetear guardado**, para que ella empiece desde cero, con el tutorial y sin el final desbloqueado.
 - Si quieres cambiar el texto de la carta, la firma o la frase de la portada, edita `src/data/story.ts`.
+- Los textos de los cinco capítulos (viñetas, retos, pies de foto y botones de la historia) están en `src/data/chapters.ts`.

@@ -415,6 +415,125 @@ Las capturas de todos los escenarios están en `docs/screenshots/escenarios-vivo
 - **Rendimiento sin medir en móvil real:** el oleaje y la espuma se calculan por píxel. En SwiftShader los escenarios se mueven con fluidez en calidad baja, pero no he medido los FPS en un móvil real. En calidad baja la malla del mar tiene menos segmentos y hay la mitad de partículas.
 - **Hueco del sol en Ibiza:** durante unos 10 s de cada ciclo de 70 s el sol está bajo el horizonte. Si se dispara la foto justo entonces, sale el cielo del anochecer sin sol.
 
+## Modo historia «Rumbo a Ibiza»
+
+Cinco capítulos jugables que cuentan la mudanza, con viñetas, reto de estilo, jurado y una foto de recuerdo por capítulo. Se entra desde la portada con el botón **Historia**, que muestra el progreso (por ejemplo, 2/5).
+
+### Capítulos
+
+| # | Capítulo | Escenario | Look obligatorio | Recuerdo |
+|---|---|---|---|---|
+| 1 | Hacer la maleta | Habitación Y2K | Bolso de viaje y calzado | «El día que cerramos la maleta» |
+| 2 | El ferry | Ferry a Ibiza | Gafas de sol | «Cruzando el mar hacia nuestra isla» |
+| 3 | Primer día en la playa | Playa al atardecer | Sombrero o gorro | «Nuestro primer día de playa» |
+| 4 | Cena en Dalt Vila | **Cena en Dalt Vila** (nuevo) | Calzado y una prenda ibicenca | «Cena entre murallas y farolillos» |
+| 5 | Estrenar la casa | Nuestra casa en Ibiza | Un adorno en el pelo | «La primera tarde en nuestra casa» |
+
+### Cómo funciona cada capítulo
+
+1. **Viñeta de entrada:** tarjeta con el estilo glass de la interfaz sobre el escenario 3D, en plano general y con la cámara orbitando. El título y las frases entran animados una tras otra, y al final se recuerda el look obligatorio.
+2. **Reto de estilo:** el estudio de siempre, con un cartel que muestra el estilo pedido y el look obligatorio con marcas en verde según se cumple. El botón **«¿Me ayudas, Víctor?»** pone un look de ejemplo (solo prendas comunes).
+3. **Jurado:** el de los retos (mismos jueces, comentarios, barras y reacción de Clara). La nota sale de `scoreLook` de `src/game/scoring.ts`. Si falta algo del look obligatorio, se aplica la misma penalización que a un reto con huecos obligatorios vacíos (máximo 2 estrellas). Hacen falta 3 estrellas o más. Las monedas se pagan como en los retos (solo la mejora).
+4. **Recuerdo:** al superar el capítulo, Clara posa en el escenario, salta el flash y se hace sola una foto 3:4. Aparece como una polaroid con su pie de foto y se guarda en el álbum.
+5. **Viñeta de cierre** y vuelta a la lista de capítulos, con el siguiente ya abierto. El desbloqueo es secuencial; un capítulo cerrado muestra «???» y un aviso al tocarlo.
+
+Al cerrar el capítulo 5, el botón **«Ver el final»** lleva al final que ya existía (la pasarela especial y después la carta). No hay un final nuevo. Terminar la historia también desbloquea el botón «Final secreto» de la portada.
+
+### Álbum de recuerdos
+
+- Botón **Recuerdos** en la portada. Muestra las polaroids en orden de capítulo. Al tocar una se ve en grande, con escenario y fecha, y se puede descargar.
+- Las fotos van en **IndexedDB**, en una base de datos propia, `rumbo-recuerdos` (`src/game/memories.ts`), separada del álbum de fotos de la otra tarea. Hay un recuerdo por capítulo: si se repite, se sustituye la foto.
+- Si el navegador no tiene IndexedDB (o lo bloquea), el juego sigue funcionando: solo avisa de que no se ha podido guardar el recuerdo.
+- «Resetear guardado» del modo debug también borra los recuerdos.
+
+### Escenario nuevo: «Cena en Dalt Vila»
+
+Noche de hora azul en la ciudad alta, todo procedural (`src/three/scenes/DaltVila.tsx`):
+
+- Muralla encalada con almenas, una puerta en arco iluminada por dentro y un baluarte.
+- Casitas escalonadas con ventanas encendidas y la catedral con su campanario iluminado al fondo.
+- Dos guirnaldas de **farolillos de papel** de colores que se mecen con la brisa y brillan con el bloom.
+- Plaza empedrada pintada en canvas, una mesa con mantel, dos copas y una vela que titila (con su luz).
+- Luna, estrellas que centellean, luciérnagas y niebla azul.
+
+Es un escenario secreto en la sesión de fotos: se abre con el final, como «Nuestra casa». Así no cambia la lista de escenarios ni sus tests.
+
+### Código
+
+| Archivo | Qué hay |
+|---|---|
+| `src/data/chapters.ts` (nuevo) | Capítulos, viñetas, retos, look obligatorio, pies de foto y todos los textos editables del modo |
+| `src/game/story.ts` (nuevo) | Lógica pura: desbloqueo, progreso, look obligatorio, puntuación con `scoring.ts`, resultado en la partida y look de ayuda |
+| `src/game/memories.ts` (nuevo) | Almacén de recuerdos en IndexedDB (`rumbo-recuerdos`) |
+| `src/store/story.ts` (nuevo) | Slice del store: fase del capítulo, envío al jurado, recuerdo y enlace con el final |
+| `src/ui/screens/Story.tsx` (nuevo) | Lista de capítulos, viñetas, reto, jurado, foto de recuerdo y álbum |
+| `src/three/scenes/DaltVila.tsx` (nuevo) | El escenario nocturno |
+| `src/game/save.ts` | `SAVE_VERSION` de 3 a **4**, con el campo `story` y su migración |
+
+Cambios mínimos en lo existente:
+
+- `src/store/game.ts`: se añade el slice, dos pantallas (`story` y `memories`), una línea en «volver» y otra en «resetear guardado».
+- `Studio.tsx` admite un modo `story` (cartel y envío los pone la historia).
+- `JuryScreen` admite un aviso y botones propios.
+- `Stage3D.tsx` sabe qué escena y qué cámara usar en cada fase (y un encuadre más abierto para las viñetas).
+- Una línea en `Stages.tsx` para el escenario nuevo.
+- La entrada en la portada.
+
+No se ha tocado `Photo.tsx`.
+
+### Guardado (v4)
+
+- `SAVE_VERSION` pasa de 3 a 4. La partida guarda `story.chapters`: mejor nota y fecha de cada capítulo superado.
+- La migración desde v3 (y desde v1 y v2, que siguen encadenadas) añade la historia vacía y conserva todo lo demás. Un test compara campo a campo una partida v3 completa antes y después de migrar.
+- Al cargar, los datos de la historia que no son válidos se descartan.
+
+### Música
+
+Se usa el sistema de audio actual sin crear otro motor. En `main` todavía no existe el director con pistas por escenario: está en la rama de la tarea de sonido (PR #1), sin fusionar. En `main`, la historia suena con la pista del menú y el final con la suya. La historia ya fija `stage` al escenario de cada capítulo. Al fusionar el PR #1 solo hará falta añadir `'story'` a `STAGED_SCREENS` en `src/audio/mapping.ts` para que cada capítulo suene con la pista de su escenario.
+
+### Antes y después
+
+Las capturas están en `docs/screenshots/historia/` y se regeneran con `node scripts/historia-shots.mjs antes|despues` (con `npx vite preview --port 4173` en marcha).
+
+| Portada antes | Portada después | Lista de capítulos |
+|---|---|---|
+| ![](docs/screenshots/historia/antes-1-portada.png) | ![](docs/screenshots/historia/despues-9-portada-progreso.png) | ![](docs/screenshots/historia/despues-2-capitulos.png) |
+
+| Viñeta de entrada | Reto | Jurado | Recuerdo |
+|---|---|---|---|
+| ![](docs/screenshots/historia/despues-3-vineta-entrada.png) | ![](docs/screenshots/historia/despues-4-reto.png) | ![](docs/screenshots/historia/despues-5-jurado.png) | ![](docs/screenshots/historia/despues-6-recuerdo.png) |
+
+| Viñeta de cierre | Dalt Vila | Álbum |
+|---|---|---|
+| ![](docs/screenshots/historia/despues-7-vineta-cierre.png) | ![](docs/screenshots/historia/despues-8-dalt-vila.png) | ![](docs/screenshots/historia/despues-10-album.png) |
+
+### Pruebas
+
+- **Unitarias, `tests/unit/historia.test.ts` (27 tests):**
+  - datos de los capítulos;
+  - que el look de ayuda use prendas comunes y supere cada capítulo;
+  - desbloqueo secuencial, progreso y mejor nota;
+  - look obligatorio y penalización;
+  - el final al completar la historia;
+  - migración v1, v2 y v3 a v4 sin pérdidas;
+  - el almacén IndexedDB, con `fake-indexeddb`, también sin IndexedDB y con errores.
+- **Cobertura:** `story.ts` 100 % de sentencias y líneas (91 % de ramas), `memories.ts` 89 % de sentencias y `save.ts` 95 %. En total, `src/game` tiene 97,6 % de sentencias.
+- **E2E, `tests/e2e/historia.spec.ts`**, en los tres tamaños y con la fixture `errors`:
+  1. Álbum vacío al principio, capítulo 2 cerrado y capítulo 1 suspendido sin el look obligatorio. Después se completan los cinco capítulos, comprobando que cada foto de recuerdo es un JPEG. El quinto lleva al final y a la carta, se ve el álbum con las cinco fotos, se recarga y sigue todo: el progreso v4 en localStorage y las cinco fotos en IndexedDB.
+  2. Una partida v3 carga sin perder monedas, prendas ni retos y se reescribe como v4.
+- **Resultados:**
+  - `npm test`: 77/77 en verde (50 de antes y 27 nuevos).
+  - `npm run build`: sin errores.
+  - `npm run size`: carga inicial de 234,5 kB gzip.
+  - `npm run e2e`: **66/66 en verde**, todas las suites en los tres tamaños, en 47 minutos. Los E2E de la historia tardan de 2,5 a 3,3 minutos por tamaño, y hay cero errores de consola.
+- **Carga inicial:** de 230,7 a 234,5 kB gzip (límite 1,5 MB). La pantalla de la historia va en su propio trozo diferido (unos 4,5 kB gzip) y Dalt Vila en el de escenarios.
+
+### Límites
+
+- **Pistas de música:** cada capítulo tendrá la pista de su escenario cuando se fusione la tarea de sonido. Ver el apartado «Música».
+- **Ambiente de Dalt Vila:** las luces de estudio que iluminan a Clara también tocan los decorados. Por eso Dalt Vila se ve como una noche de hora azul y no como una noche cerrada.
+- **Primer plano de la foto:** la foto de recuerdo recorta el centro del lienzo a 3:4. En pantallas muy anchas se ve algo más de escenario a los lados.
+
 ## Cómo añadir prendas nuevas
 
 1. Abre `src/data/items.ts` y añade una línea en la categoría correspondiente con el helper `it(...)`:
@@ -440,6 +559,7 @@ Las capturas de todos los escenarios están en `docs/screenshots/escenarios-vivo
    - Muñecas en `src/data/characters.ts`.
    - Escenarios y poses en `src/data/stages.ts`.
    - Textos del final en `src/data/story.ts`.
+   - Capítulos y textos del modo historia en `src/data/chapters.ts`.
 4. Ejecuta `npm test`: los tests comprueban que cada categoría tiene al menos 12 prendas, que los ids son únicos y que las especiales tienen precio.
 
 ## Estructura
