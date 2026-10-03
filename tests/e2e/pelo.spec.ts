@@ -69,10 +69,12 @@ test('la coleta se balancea al girar a la muñeca y vuelve a su sitio', async ({
   await openHairTab(page)
   await page.getByTestId('hair-coleta-alta').click()
   await expect.poll(async () => (await stats(page)).chains).toBe(1)
-  // en reposo apenas oscila (solo la brisa)
-  await page.waitForTimeout(3000)
-  const calm = await swingRange(page, 1500)
-  expect(calm).toBeLessThan(0.1)
+  // al cambiar de peinado se asienta y en reposo apenas oscila (solo la brisa);
+  // con render por software la simulación va más lenta, así que se espera a que se asiente
+  let calm = 1
+  await expect
+    .poll(async () => (calm = await swingRange(page, 1500)), { timeout: 30_000 })
+    .toBeLessThan(0.1)
   // giro rápido: la coleta se queda atrás y rebota
   await setRot(page, 3)
   const spun = await swingRange(page, 2500)
