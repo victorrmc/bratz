@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
+import { useGame } from '../store/game'
 
 // Entorno de iluminación generado por código (sin HDRI externos): una sala
 // con paneles emisivos tipo softbox que da reflejos glam en charol y joyas.
@@ -35,10 +36,79 @@ function buildEnvScene(tint: string, accent: string): THREE.Scene {
   return scene
 }
 
+// Calidad del entorno. La fija Stage3D al renderizar (antes de que corran los efectos).
+let envQuality: 'baja' | 'media' | 'alta' = 'alta'
+export function setEnvQuality(q: 'baja' | 'media' | 'alta') {
+  envQuality = q
+}
+
+const probeCache = new Map<string, THREE.SphericalHarmonics3>()
+
+/**
+ * Luz ambiental en armónicos esféricos sacada de la misma sala (calidad baja).
+ * Muestrear el mapa PMREM en cada píxel es lo más caro del sombreado en GPUs
+ * modestas; la sonda da la misma luz difusa por unas pocas multiplicaciones,
+ * a cambio de perder los reflejos del entorno (quedan los brillos de las luces).
+ */
+function envProbe(tint: string, accent: string): THREE.SphericalHarmonics3 {
+  const key = `${tint}|${accent}`
+  let sh = probeCache.get(key)
+  if (!sh) {
+    sh = new THREE.SphericalHarmonics3()
+    // rayos desde el centro en una espiral de Fibonacci (ángulo sólido uniforme)
+    const envScene = buildEnvScene(tint, accent)
+    envScene.updateMatrixWorld(true)
+    const ray = new THREE.Raycaster()
+    const dir = new THREE.Vector3()
+    const basis = new Array<number>(9).fill(0)
+    const c = new THREE.Color()
+    const N = 768
+    const w = (4 * Math.PI) / N
+    for (let i = 0; i < N; i++) {
+      const y = 1 - (2 * (i + 0.5)) / N
+      const r = Math.sqrt(1 - y * y)
+      const a = i * Math.PI * (3 - Math.sqrt(5))
+      dir.set(Math.cos(a) * r, y, Math.sin(a) * r)
+      ray.set(new THREE.Vector3(), dir)
+      const hit = ray.intersectObjects(envScene.children, false)[0]
+      if (!hit) continue
+      c.copy(((hit.object as THREE.Mesh).material as THREE.MeshBasicMaterial).color)
+      THREE.SphericalHarmonics3.getBasisAt(dir, basis)
+      for (let k = 0; k < 9; k++) {
+        sh.coefficients[k].x += c.r * basis[k] * w
+        sh.coefficients[k].y += c.g * basis[k] * w
+        sh.coefficients[k].z += c.b * basis[k] * w
+      }
+    }
+    disposeScene(envScene)
+    probeCache.set(key, sh)
+  }
+  return sh
+}
+
+function disposeScene(s: THREE.Scene) {
+  s.traverse((o) => {
+    if (o instanceof THREE.Mesh) {
+      o.geometry.dispose()
+      ;(o.material as THREE.Material).dispose()
+    }
+  })
+}
+
 export function GlamEnvironment({ tint = '#ffc2e2', accent = '#c9b6ff', intensity = 0.9 }: { tint?: string; accent?: string; intensity?: number }) {
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
+  // solo para volver a ejecutar el efecto al cambiar de calidad
+  const storeQuality = useGame((s) => s.quality)
   useEffect(() => {
+    if (envQuality === 'baja') {
+      const probe = new THREE.LightProbe(envProbe(tint, accent), intensity)
+      scene.add(probe)
+      scene.environment = null
+      return () => {
+        scene.remove(probe)
+      }
+    }
     const key = `${tint}|${accent}`
     let tex = cache.get(key)
     if (!tex) {
@@ -46,17 +116,12 @@ export function GlamEnvironment({ tint = '#ffc2e2', accent = '#c9b6ff', intensit
       const envScene = buildEnvScene(tint, accent)
       tex = pm.fromScene(envScene, 0.035).texture
       pm.dispose()
-      envScene.traverse((o) => {
-        if (o instanceof THREE.Mesh) {
-          o.geometry.dispose()
-          ;(o.material as THREE.Material).dispose()
-        }
-      })
+      disposeScene(envScene)
       cache.set(key, tex)
     }
     scene.environment = tex
     scene.environmentIntensity = intensity
-  }, [gl, scene, tint, accent, intensity])
+  }, [gl, scene, tint, accent, intensity, storeQuality])
   return null
 }
 

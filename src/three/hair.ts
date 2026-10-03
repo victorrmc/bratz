@@ -814,7 +814,7 @@ function hairMaterial(h: HairLook): THREE.MeshPhysicalMaterial {
     map: hairTexture(h.base, h.highlights, h.highlightsOn, h.tips, false),
     roughness: 0.72 - h.shine * 0.12,
     specularIntensity: 0.35,
-    sheen: q === 'baja' ? 0 : 0.2,
+    sheen: q === 'alta' ? 0.2 : 0,
     sheenRoughness: 0.5,
     sheenColor: base.clone().lerp(new THREE.Color('#ffffff'), 0.25),
     side: THREE.DoubleSide,

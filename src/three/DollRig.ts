@@ -193,9 +193,9 @@ export class DollRig {
       color: '#ffffff',
       roughness: 1,
       metalness: 1,
-      clearcoat: getMaterialQuality() === 'baja' ? 0 : 0.15,
+      clearcoat: getMaterialQuality() === 'alta' ? 0.15 : 0,
       clearcoatRoughness: 0.4,
-      sheen: 0.3,
+      sheen: getMaterialQuality() === 'alta' ? 0.3 : 0,
       sheenColor: new THREE.Color('#ffd9d2'),
     })
     this.headMesh = new THREE.Mesh(headFor(doll.face.lipFullness), this.headMat)

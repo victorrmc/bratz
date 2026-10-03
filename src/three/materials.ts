@@ -35,7 +35,9 @@ export function fabricMaterial(spec: MatSpec): THREE.MeshPhysicalMaterial {
 }
 
 function build(spec: MatSpec, pattern: PatternId): THREE.MeshPhysicalMaterial {
-  const hi = quality !== 'baja'
+  // terciopelo (sheen), barniz de telas, relieve e iridiscencia: solo en calidad alta.
+  // En media son lo más caro del sombreado de la muñeca y en gama media no compensan.
+  const hi = quality === 'alta'
   const c2 = spec.color2 ?? '#ffffff'
   const usesMap = pattern !== 'liso' || ['denim', 'knit', 'cotton'].includes(spec.fabric)
   const m = new THREE.MeshPhysicalMaterial({ color: '#ffffff', side: THREE.DoubleSide })
@@ -201,9 +203,9 @@ export function skinMaterial(color: string): THREE.MeshPhysicalMaterial {
   const m = new THREE.MeshPhysicalMaterial({
     color,
     roughness: 0.48,
-    clearcoat: quality === 'baja' ? 0 : 0.22,
+    clearcoat: quality === 'alta' ? 0.22 : 0,
     clearcoatRoughness: 0.38,
-    sheen: quality === 'baja' ? 0 : 0.6,
+    sheen: quality === 'alta' ? 0.6 : 0,
     sheenRoughness: 0.45,
     sheenColor: new THREE.Color('#ffb8b0'),
   })
