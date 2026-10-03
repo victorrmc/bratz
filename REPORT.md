@@ -22,7 +22,7 @@ No usa backend ni recursos externos en tiempo de ejecución. Todo, incluidas las
   - **Vega**, rockera.
   - **Alba**, romántica boho.
 - **Clara según la descripción:**
-  - Pelo caoba recogido en moño bajo, con raya al medio y la frente despejada.
+  - Pelo caoba recogido en moño bajo, con raya al medio y la frente despejada. Por defecto lleva el **recogido de boda ibicenca** (moño bajo suelto con corona trenzada y flores).
   - Piel clara, cejas arqueadas, ojos oscuros y labios carnosos.
   - Uñas oscuras y un reloj inteligente de correa clara en la **muñeca izquierda**.
 - **Cuerpo paramétrico:**
@@ -147,6 +147,8 @@ Cambios en `src/three/hair.ts` y `src/data/hair.ts`. Además, en `src/data/types
 
 Las flores son geometría procedural con colores por vértice y *sheen*. No se usa ningún recurso externo.
 
+Clara empieza con el recogido de boda ibicenca (`src/data/characters.ts`). Las partidas guardadas conservan el peinado que ya tenían.
+
 ### Antes y después
 
 Las capturas están en `docs/screenshots/pelo/`: `antes/` y `despues/`. Se generan con `node scripts/hair-shots.mjs <carpeta> <peinados> [giro]`.
@@ -169,7 +171,10 @@ Las capturas están en `docs/screenshots/pelo/`: `antes/` y `despues/`. Se gener
   - que las trenzas se muevan al caminar por la pasarela.
   
   Para eso, `window.__claraHair` expone el número de cadenas y el balanceo.
-- RESULTADOS_E2E
+- **Resultados:**
+  - `npm test`: 38/38 (35 que ya había y 3 nuevas).
+  - `npm run e2e`: **33/33** (24 que ya había y 9 nuevas), sin errores de consola.
+  - `npm run build`: correcto.
 - **Carga inicial:** sin cambios, unos 139 kB gzip. El código del pelo va en el trozo 3D, que pasa de unos 279 a unos 284 kB gzip.
 
 ### Límites

@@ -121,7 +121,7 @@ export const HAIR_STYLES: HairStyleDef[] = [
   {
     id: 'mono-despeinado',
     name: 'Moño despeinado',
-    pieces: [{ kind: 'capVolume', params: { part: 0, high: 1 } }, { kind: 'bunMessy', params: { high: 1, size: 1.1 } }, { kind: 'faceStrands', params: { short: 1 } }],
+    pieces: [{ kind: 'capVolume', params: { part: 0 } }, { kind: 'bunMessy', params: { high: 1, size: 1.1 } }, { kind: 'faceStrands', params: { short: 1 } }],
     tallTop: true,
     tags: ['street', 'playa', 'boho'],
   },
