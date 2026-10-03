@@ -1,5 +1,6 @@
 // Banco de capturas de la cara: 4 muñecas × 6 expresiones × 3 maquillajes, de frente y a ¾.
 // Uso: node scripts/face-shots.mjs <ronda> [muñecas separadas por comas]
+// Con el renderizado por software tarda ~50 s por captura; si se corta, al relanzarlo continúa.
 // Requiere el servidor de desarrollo (la vista de desarrollo solo existe en dev): npx vite --port 5173
 // Después: python3 scripts/grid.py para las hojas de contactos (lo lanza este script al final).
 import { chromium } from 'playwright'
@@ -35,11 +36,13 @@ for (const doll of dolls) {
     for (const mk of view === 'frente' ? makeups : ['propio']) {
       for (const expr of exprs) {
         const name = `${doll}-${view}-${mk}-${expr}`
+        shots.push(name)
+        // se puede reanudar: las capturas que ya existen no se repiten (REHACER=1 las fuerza)
+        if (!process.env.REHACER && fs.existsSync(`${raw}/${name}.png`)) continue
         await page.goto(`${base}?cam=face&doll=${doll}&rot=${rot}&mk=${mk}&expr=${expr}`)
         await page.locator('canvas').waitFor({ timeout: 60_000 })
         await page.waitForTimeout(1800)
         await page.screenshot({ path: `${raw}/${name}.png` })
-        shots.push(name)
         process.stdout.write('.')
       }
     }
