@@ -415,6 +415,141 @@ Las capturas de todos los escenarios están en `docs/screenshots/escenarios-vivo
 - **Rendimiento sin medir en móvil real:** el oleaje y la espuma se calculan por píxel. En SwiftShader los escenarios se mueven con fluidez en calidad baja, pero no he medido los FPS en un móvil real. En calidad baja la malla del mar tiene menos segmentos y hay la mitad de partículas.
 - **Hueco del sol en Ibiza:** durante unos 10 s de cada ciclo de 70 s el sol está bajo el horizonte. Si se dispara la foto justo entonces, sale el cielo del anochecer sin sol.
 
+## Rendimiento en móviles reales
+
+Archivos principales: `src/three/geo.ts`, `src/three/DollRig.ts` y las partes de rendimiento de `src/three/Stage3D.tsx`, más los nuevos `geoCache.ts`, `dollGeo.ts`, `dollGeo.worker.ts`, `dollGeoLoader.ts`, `post.tsx`, `composer.ts` y `shadow.tsx`. Fuera de esos, solo cambios mínimos: una línea del terciopelo del pelo y la caché de `hair.ts`, los niveles de calidad de `materials.ts`, la sonda de luz de `env.tsx`, la sombra en `Home.tsx`, `Studio.tsx` y `Stages.tsx`, las bombillas y corazones de `common.tsx`, una marca de tiempo en `App.tsx` y el build en `vite.config.ts`.
+
+### Qué limitaba de verdad
+
+Antes de tocar nada, lo medí con perfiles (CDP y trazas de Chrome) en el entorno de `scripts/perf.mjs`:
+
+- **Carga 3D (~4,6 s):** el 80 % era **compilar shaders**, unos 3,8 s bloqueado en `getProgramInfoLog` con 45 programas. Generar la geometría costaba ~200 ms con la CPU normal y **~650 ms con la CPU 4x más lenta**.
+- **Estudio (~30 fps):** el hilo principal estaba ~70 % ocioso. El límite era el GPU (SwiftShader):
+  - el mapa de entorno PMREM se llevaba casi la mitad del fotograma;
+  - en calidad media, `ContactShadows` repintaba la escena a 512² y la desenfocaba dos veces en cada fotograma, y el terciopelo y el barniz de la muñeca eran lo siguiente más caro;
+  - en calidad baja, con un lienzo de 136×204, casi todo el coste de la muñeca eran triángulos más pequeños que un píxel (por ejemplo, 3.500 triángulos en unas manos que ocupan 3 píxeles).
+
+### Generación en un Web Worker y caché en IndexedDB
+
+- **Caché por clave** (`geoCache.ts`): cada pieza de la muñeca pasa por `keyed(nombre, construir)`.
+  - Si ya está en memoria, se monta el `BufferGeometry` directamente con sus arrays.
+  - Si no, se construye y se guarda en IndexedDB en segundo plano.
+  - La clave lleva el nivel de detalle y una **huella del código** que genera la geometría (`__GEO_VERSION__`, calculada al compilar). Si ese código cambia, lo guardado se ignora y se borra.
+  - Base de datos propia, `rumbo-geometria`. No toca el guardado de la partida ni `SAVE_VERSION`.
+- **Qué se guarda:** cuerpo, cabeza, manos (4 niveles de flexión × 2 lados × piel y uñas), pies y **todas las piezas de pelo**. La ropa se sigue generando al vestirse (se deforma cada fotograma y no compensa).
+- **Primera visita:** el worker (`dollGeo.worker.ts`) genera las piezas base mientras el hilo principal monta la escena y compila shaders, y las devuelve como arrays transferibles (sin copia).
+- **Segunda visita:** se leen de IndexedDB en ~50 ms (~200 ms con la CPU 4x más lenta) y no se regenera nada.
+- **Sin workers o si algo falla:** se generan en el hilo principal, como antes.
+- `window.__claraGeo` expone el origen de la geometría (`worker`, `indexeddb` o `hilo principal`) y los tiempos.
+
+### Tamaño del trozo 3D
+
+| Trozo (kB gzip) | Antes | Después | Cuándo se descarga |
+|---|---|---|---|
+| `DollRig` (antes incluía three y r3f enteros) | 287,7 | **50,4** | al tocar «Toca para empezar» |
+| `motor-3d` (three + react-three-fiber) | — | 202,0 | al tocar |
+| `Stage3D` (antes incluía el posproceso) | 89,2 | 9,6 | al tocar |
+| **Total para arrancar el 3D** | **376,8** | **262,0 (−30 %)** | |
+| `post` (posproceso) | — | 84,0 | solo en calidad alta, tras mostrar la muñeca |
+| `dollGeo.worker` | — | ~39 | solo si falta la caché (primera visita) |
+
+- **Tree-shaking de three:** `<Canvas>` de r3f registraba **todo** el namespace de three (`extend(THREE)`) y eso impedía podar nada. El plugin `scripts/r3f-catalogue.mjs` sustituye, al compilar, esa llamada por un catálogo con solo las clases usadas como elementos JSX en `src/` y en los componentes de drei importados (24 clases). three + r3f + muñeca pasan de 287,7 a ~252 kB.
+- **El resto de la bajada** de `DollRig` es separar three y r3f en el trozo `motor-3d`, con un nombre estable que se reutiliza de caché entre versiones, y sacar el posproceso a su propio trozo.
+- **Carga inicial:** sin cambios, 231,4 kB gzip (límite 1,5 MB). El juego completo para jugar sin conexión pasa de 614,6 a 655,1 kB, porque se añade el worker.
+
+### Calidad media viable en gama media
+
+| | Baja | Media | Alta |
+|---|---|---|---|
+| Luz ambiental | **sonda de armónicos esféricos** (antes, PMREM) | PMREM con reflejos | PMREM con reflejos |
+| Terciopelo, barniz de telas y piel, relieve, iridiscencia | no | **no** (antes, sí) | sí |
+| Sombra bajo la muñeca | **mancha suave** (antes, ninguna) | **mancha suave** (antes, ContactShadows) | ContactShadows |
+| Posproceso (bloom, AA, viñeta) | no | **no** (antes, sí) | sí, diferido |
+| Detalle de la muñeca | 0,3 y casquetes de 2 anillos | 0,75 y casquetes de 4 | 1 |
+
+- **La sonda de luz** se calcula en la CPU lanzando 768 rayos contra la misma sala procedural que genera el PMREM: misma luz difusa, sin texturas ni GPU. El tono ACES lo sigue aplicando el renderer en todas las calidades.
+- **El monitor de rendimiento** apunta ahora a 45 fps (antes, 32): baja la resolución y después la calidad hasta llegar ahí.
+- **En SwiftShader, a la misma resolución** (234×351), la calidad media pasa de 5,9 a 14,5 fps (×2,5). En un móvil real el coste relativo del entorno y de los vértices es mucho menor; hay que confirmarlo con el perfil en dispositivo (ver más abajo).
+
+### Carga 3D
+
+- **Señal de «3D listo»:** llega cuando la muñeca lleva tres fotogramas en pantalla (marca `rumbo:3d-listo`). Antes bastaban tres fotogramas de cualquier cosa.
+- **Compilación paralela:** en los navegadores con `KHR_parallel_shader_compile`, los shaders de la muñeca se compilan con `compileAsync` mientras sigue oculta, sin bloquear el hilo principal. SwiftShader no la tiene.
+- **Menos programas que compilar:** de 45 a 31, al quitar el posproceso, `ContactShadows` y las variantes con terciopelo o barniz del arranque.
+
+### Resultados
+
+`node scripts/perf.mjs` (SwiftShader, viewport 390×844, calidad automática; datos en `docs/perf.json`):
+
+| Medida | Antes | Después | Objetivo |
+|---|---|---|---|
+| Estudio, CPU 4x más lenta | 29,7–33,5 fps, lienzo 136×204 | **47,5 fps**, lienzo 156×234 (en tres ejecuciones previas, 45,5–50,3) | ≥ 45 fps |
+| Pasarela, CPU 4x más lenta | 35,5 fps | **49,7 fps** | — |
+| Carga 3D, primera visita, CPU 1x | 4,6 s | **2,54 s** (mediana de 3; en otra tanda de 5, 1,91 s) | < 2 s |
+| Carga 3D, segunda visita, CPU 1x | 3,8 s | **0,74 s** | < 2 s |
+| Carga 3D, primera visita, CPU 4x | 5,4 s | **3,28 s** | — |
+| Carga 3D, segunda visita, CPU 4x | 3,7 s | **1,75 s** | < 2 s |
+
+- La carga se mide desde el toque en «Toca para empezar» (marca `rumbo:toque`) hasta `rumbo:3d-listo`. Antes no existía esa marca: la cifra de «antes» es hasta que aparece la portada, que ocurría a la vez.
+- **El objetivo de la carga se cumple con caché** (segunda visita en adelante, que es lo normal en una app instalada). **En la primera visita no se cumple siempre:** entre 1,7 y 2,6 s con la CPU normal, porque en SwiftShader manda la compilación de shaders.
+
+### Antes y después
+
+Capturas en `docs/screenshots/rendimiento/` (se regeneran con `node scripts/perf-shots.mjs <antes|despues>`):
+
+| | Antes | Después |
+|---|---|---|
+| Estudio, calidad automática, CPU 4x | ![](docs/screenshots/rendimiento/antes/estudio-auto.png) | ![](docs/screenshots/rendimiento/despues/estudio-auto.png) |
+| Estudio, calidad media | ![](docs/screenshots/rendimiento/antes/estudio-media.png) | ![](docs/screenshots/rendimiento/despues/estudio-media.png) |
+| Estudio, calidad baja | ![](docs/screenshots/rendimiento/antes/estudio-baja.png) | ![](docs/screenshots/rendimiento/despues/estudio-baja.png) |
+| Portada | ![](docs/screenshots/rendimiento/antes/portada.png) | ![](docs/screenshots/rendimiento/despues/portada.png) |
+
+FPS durante cada captura (`fps.json` en cada carpeta; ventana de 5 s, así que son orientativos):
+
+| Captura | Antes | Después |
+|---|---|---|
+| Estudio, automática, CPU 4x | 31,3 fps a 136×203 | 36,2 fps a 214×319 (el monitor aún estaba subiendo la resolución) |
+| Estudio, media (234×351) | 5,9 fps | 12,9 fps |
+| Estudio, baja (lienzo fijo de 234×351) | 19,7 fps a 156×234 | 45,1 fps a 234×351 |
+| Portada, media | 5,9 fps | 9,4 fps |
+
+### Pruebas
+
+- **E2E** (`tests/e2e/rendimiento.spec.ts`, 5 flujos × 3 viewports):
+  - la geometría sale del worker, se guarda y, al recargar, sale de IndexedDB sin regenerar nada (cuerpo, cabeza, manos, pies y pelo);
+  - la señal de «3D listo» llega con la muñeca;
+  - calidad baja: sonda de luz y no se pide el trozo del posproceso;
+  - calidad media: entorno sí, terciopelo y posproceso no;
+  - calidad alta: el posproceso llega después y compila sus shaders.
+- **Unitarias** (`tests/unit/rendimiento.test.ts`): ida y vuelta de la serialización (índice, grupos y nodos de pelo), que cada pieza se construye una vez por nivel de detalle, el conjunto base que manda el worker y el catálogo de r3f.
+- **Resultados:**
+  - `npm test`: 54/54.
+  - `npm run build` sin errores; `npm run size` da 231,4 kB gzip de carga inicial.
+  - `npm run e2e`: 74/75 en la batería completa. El que falló es `pelo.spec.ts` › «la coleta se balancea…» en 1440, con un 0,103 frente al límite de 0,1 de la oscilación en reposo. Repetido 5 veces aislado con la build final, pasa 5/5: es un test de física que depende del ritmo de fotogramas.
+  - Los 15 E2E nuevos (5 × 3 viewports) en verde y con 0 errores de consola.
+
+### Perfil en un móvil real (pendiente)
+
+Desde este entorno no hay ningún móvil conectado, así que **no he podido hacer el perfil en dispositivo real**. Para hacerlo:
+
+1. Activa la depuración USB en un Android de gama media y conéctalo.
+2. Abre `chrome://inspect` en el ordenador y el juego en el Chrome del móvil. Pulsa «Toca para empezar» y entra en el Estudio.
+3. Pulsa «inspect» y pega en la consola el contenido de `scripts/perfil-movil.js`. En 10 s saca una tabla con:
+   - FPS y fotograma p95;
+   - calidad y tamaño del lienzo;
+   - carga 3D desde el toque y origen de la geometría;
+   - programas, llamadas de dibujo y triángulos;
+   - si hay compilación paralela.
+4. Repítelo tras borrar los datos del sitio para medir la primera carga, y con `?q=media` para comprobar la calidad media.
+5. Para un perfil completo, graba 10 s en la pestaña **Performance** de DevTools.
+
+### Limitaciones
+
+- **FPS medidos con renderizado por software:** las cifras salen de SwiftShader. En ese entorno, el GPU emulado y la composición de la página se reparten los mismos núcleos de la CPU, y la ralentización 4x también les afecta. Por eso la calidad automática acaba en baja con un lienzo pequeño, igual que antes; la diferencia es que ahora da ≥45 fps en vez de ~30.
+- **Primera carga con la CPU 4x más lenta:** sigue por encima de 2 s, porque compilar shaders en SwiftShader es muy lento y no admite compilación paralela. La segunda carga, con la geometría en IndexedDB, sí baja de 2 s.
+- **La ropa no se cachea:** se genera al vestirse, igual que antes.
+- **Calidad media sin bloom:** el brillo de bombillas y neones es más discreto que en alta.
+
 ## Cómo añadir prendas nuevas
 
 1. Abre `src/data/items.ts` y añade una línea en la categoría correspondiente con el helper `it(...)`:
