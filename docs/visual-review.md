@@ -169,3 +169,42 @@ Las capturas están en `docs/screenshots/<ronda>/`, con un viewport de 390×844 
 - El **centro comercial**, que era el escenario más flojo (6), sube a 7 tras rediseñarlo. Ya no queda ninguna captura por debajo de 7.
 
 Subir de 7 a 8 de forma generalizada necesitaría modelos GLB/VRM hechos por un artista. El sistema está preparado para incorporarlos en `/assets`.
+
+## Cara (objetivo: estilo Bratz)
+
+Banco de capturas propio, generado con `node scripts/face-shots.mjs <ronda>` sobre el servidor de desarrollo (`npx vite --port 5173`). Usa la vista de desarrollo (`?cam=face&doll=…&expr=…&mk=…&rot=…`) con la misma luz en todas las rondas.
+
+- 4 muñecas × 6 expresiones (sonrisa, dientes, risa, guiño, sorpresa, seria).
+- 3 maquillajes de frente: el **propio** de cada muñeca, uno **natural** casi sin maquillaje y uno de **fiesta** (gráfico, pestañas drama, labios metalizados y estrellas).
+- Además, la vista a ¾ con el maquillaje propio.
+- Hojas en `docs/screenshots/cara/<ronda>/`: una por muñeca y `todas.jpg`. En las hojas por muñeca, cada fila es un maquillaje o una vista y cada columna una expresión. Las capturas sueltas no se versionan.
+
+Criterios, de 1 a 10, medidos frente al estilo Bratz y no frente a una muñeca genérica:
+
+- **Ojos:** tamaño, forma de almendra, iris, pestañas y brillos.
+- **Cejas:** arco, grosor y distancia al ojo.
+- **Labios:** volumen, arco de Cupido y acabado.
+- **Forma:** contorno de la cara, mandíbula, barbilla y perfil a ¾.
+- **Piel:** volumen, colorete, nariz e iluminador.
+- **Expr.:** expresiones y ojos cerrados.
+
+Por eso la nota es más baja que el 8 que sacaba «06 cara» en la ronda 4: allí se medía si la cara era correcta, aquí si es Bratz.
+
+### Ronda 0 (`r0`, punto de partida)
+
+| Muñeca | Ojos | Cejas | Labios | Forma | Piel | Expr. | Nota | Problemas detectados |
+|---|---|---|---|---|---|---|---|---|
+| Clara | 6 | 5 | 5 | 5 | 6 | 5 | 5 | Ojos correctos pero pequeños para Bratz y con mucho blanco. Cejas finas y lejos del ojo. Labios finos y granates. Barbilla en punta |
+| Nayra | 4 | 5 | 4 | 5 | 6 | 5 | 4 | Las gafas de su look tapan los ojos. Labios metalizados que se ven grises |
+| Vega | 6 | 4 | 5 | 5 | 6 | 5 | 4 | La diadema rosa tapa las cejas y la frente. Labios mate oscuros y pequeños |
+| Alba | 6 | 5 | 6 | 5 | 6 | 5 | 5 | Las pecas quedan bien. Mismos ojos y cejas que Clara; la cara apenas se distingue |
+
+Problemas comunes a las cuatro:
+
+- **Sonrisa:** una franja blanca entre los labios que no se lee ni como dientes ni como brillo.
+- **Ojos cerrados (risa, guiño):** solo hay una línea de pestañas sobre la piel. Con sombra intensa, el párpado se convierte en una mancha de color saturado (fiesta).
+- **Pestañas inferiores:** parecen pelos sueltos.
+- **Nariz:** dos manchas y una línea.
+- **Forma:** la cara es un triángulo invertido, con mandíbula muy afilada y barbilla larga. El cuello es largo y fino.
+- **Maquillaje de fiesta:** aparecen dos discos grises de borde duro bajo el rabillo del ojo, también en el lado sin estrellas. Coinciden con las elipses metálicas que `paintFace` pinta en el mapa de metal para las gemas (siempre en los dos lados). Hay que confirmarlo en la fase 5.
+- **Diferenciación:** las cuatro muñecas comparten forma de cara, ojos y cejas. Solo cambian el color y tres parámetros.

@@ -13,4 +13,4 @@ rows = (len(ims) + cols - 1) // cols
 o = Image.new('RGB', (cw * cols, ch * rows), 'white')
 for k, im in enumerate(ims):
     o.paste(im.resize((cw, ch)), ((k % cols) * cw, (k // cols) * ch))
-o.save(out, optimize=True)
+o.save(out, quality=85, optimize=True) if out.endswith('.jpg') else o.save(out, optimize=True)

@@ -7,3 +7,4 @@ playwright-report
 *.log
 .lighthouseci
 *.tsbuildinfo
+docs/screenshots/cara/*/sueltas/

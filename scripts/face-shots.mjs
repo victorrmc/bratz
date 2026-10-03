@@ -10,6 +10,7 @@ import fs from 'node:fs'
 const [, , round = 'r0', dollList = 'clara,nayra,vega,alba'] = process.argv
 const base = process.env.URL ?? 'http://localhost:5173/'
 const dir = `docs/screenshots/cara/${round}`
+// las sueltas no se versionan (pesan ~40 MB por ronda); solo las hojas
 const raw = `${dir}/sueltas`
 fs.mkdirSync(raw, { recursive: true })
 
@@ -56,8 +57,8 @@ await browser.close()
 for (const doll of dolls) {
   const rows = [...makeups.map((mk) => `frente-${mk}`), 'tres-cuartos-propio']
   const files = rows.flatMap((r) => exprs.map((e) => `${raw}/${doll}-${r}-${e}.png`))
-  execFileSync('python3', ['scripts/grid.py', `${dir}/${doll}.png`, String(exprs.length), ...files])
+  execFileSync('python3', ['scripts/grid.py', `${dir}/${doll}.jpg`, String(exprs.length), ...files])
 }
 const all = dolls.flatMap((d) => exprs.map((e) => `${raw}/${d}-frente-propio-${e}.png`))
-execFileSync('python3', ['scripts/grid.py', `${dir}/todas.png`, String(exprs.length), ...all])
+execFileSync('python3', ['scripts/grid.py', `${dir}/todas.jpg`, String(exprs.length), ...all])
 console.log(`Hojas en ${dir}`)
