@@ -6,6 +6,27 @@ import { DollRig } from './DollRig'
 import { DOLL_BY_ID } from '../data/characters'
 import { defaultLookFor, toggleItem } from '../game/look'
 import { ITEM_BY_ID } from '../data/items'
+import type { Expression, MakeupLook } from '../data/types'
+
+// Maquillajes de muestra para revisar la cara: el de cada muñeca, uno casi sin maquillaje y uno recargado.
+const MAKEUPS: Record<string, (m: MakeupLook) => MakeupLook> = {
+  propio: (m) => m,
+  natural: (m) => ({ ...m, eyeshadowAmt: 0.1, liner: 'none', lashes: 'natural', blushAmt: 0.2, highlighter: 0.1, lipAmt: 0.25, lipFinish: 'mate', gems: 'none' }),
+  fiesta: (m) => ({
+    ...m,
+    eyeshadow: '#e040fb',
+    eyeshadowAmt: 0.9,
+    liner: 'grafico',
+    lashes: 'drama',
+    blushAmt: 0.6,
+    highlighter: 0.8,
+    lips: '#ff2d87',
+    lipFinish: 'metal',
+    lipAmt: 1,
+    gems: 'estrellas',
+    gemColor: '#ffd84a',
+  }),
+}
 
 function Env() {
   const { gl, scene } = useThree()
@@ -31,11 +52,16 @@ function Doll({ id, pose }: { id: string; pose: string }) {
         if (def) Object.assign(look, toggleItem(look, def))
       }
     }
-    const hair = new URLSearchParams(location.search).get('hair')
+    const q = new URLSearchParams(location.search)
+    const hair = q.get('hair')
     if (hair) look.hair.styleId = hair
+    const mk = MAKEUPS[q.get('mk') ?? 'propio']
+    if (mk) look.makeup = mk(look.makeup)
+    rig.blinkEnabled = false
     rig.setLook(look)
     rig.setPose(pose)
-    rig.blinkEnabled = false
+    const expr = q.get('expr') as Expression | null
+    if (expr) rig.setExpression(expr)
     rig.snapPose()
   }, [rig, id, pose])
   useFrame((s, dt) => rig.update(dt, s.clock.elapsedTime))
