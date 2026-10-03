@@ -1,4 +1,4 @@
-import { ContactShadows, RoundedBox } from '@react-three/drei'
+import { RoundedBox } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
@@ -6,13 +6,13 @@ import { AmbientParticles, AmbientSky, GlamEnvironment, seeded, ThreePointLights
 import { FloatingGlints } from '../effects'
 import { Bulbs, FloatingShape, GlossyFloor, Islet, NeonTube, Palm, WhiteHouse } from './common'
 import { patternTexture } from '../textures'
+import { DollShadow } from '../shadow'
 import { extrude, heartShape, roundedRectShape, starShape } from '../geo'
 
 // Escenarios de la sesión de fotos (y fondos de los retos).
 
 function Shadow({ quality, y = 0.002, color = '#5a2a4a' }: { quality: string; y?: number; color?: string }) {
-  if (quality === 'baja') return null
-  return <ContactShadows position={[0, y, 0]} opacity={0.55} scale={2.4} blur={2.4} far={1.6} resolution={512} color={color} />
+  return <DollShadow quality={quality} y={y} color={color} scale={2.4} />
 }
 
 // ───────────────────── Piezas animadas ─────────────────────

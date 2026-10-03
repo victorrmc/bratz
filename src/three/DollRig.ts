@@ -1,26 +1,11 @@
 import * as THREE from 'three'
 import type { DollDef, Expression, Look, MakeupLook, NailShape } from '../data/types'
-import {
-  J,
-  armSegs,
-  earGeometry,
-  footGeometry,
-  ankleGeometry,
-  headGeometry,
-  legSegs,
-  limbGeometry,
-  mirrorX,
-  neckGeometry,
-  torsoGeometry,
-  footPath,
-  torsoNormalCanvas,
-  handParts,
-  nailMatrix,
-} from './body'
-import { ellipsoid, merge, onDetailChange } from './geo'
+import { J, mirrorX, footPath, torsoNormalCanvas } from './body'
+import { merge, onDetailChange } from './geo'
+import { CURLS, bodyParts, footFor, handGeometry, headFor } from './dollGeo'
 import { buildEyes, faceNormalCanvas, faceTextures, openEyes, type EyeSet } from './face'
 import { skinMaterial, getMaterialQuality, headSkinMaterial, torsoSkinMaterial } from './materials'
-import { nailGeometry, nailMaterial } from './nails'
+import { nailMaterial } from './nails'
 import {
   blendPose,
   copyPose,
@@ -78,46 +63,6 @@ const PARENT: Record<JointName, JointName | 'root'> = {
 
 const mergedCache = new Map<string, THREE.BufferGeometry>()
 onDetailChange(() => mergedCache.clear())
-const footCache = new Map<number, { foot: THREE.BufferGeometry; ankle: THREE.BufferGeometry }>()
-function footFor(arch: number) {
-  const k = Math.round(arch * 100) / 100
-  let f = footCache.get(k)
-  if (!f) {
-    f = { foot: footGeometry(k), ankle: ankleGeometry(k) }
-    footCache.set(k, f)
-  }
-  return f
-}
-
-function withSphere(g: THREE.BufferGeometry, c: THREE.Vector3, r: number) {
-  const sph = ellipsoid(r, r, r, 20, 14)
-  sph.translate(c.x, c.y, c.z)
-  return merge([g, sph])
-}
-
-// Geometrías del cuerpo compartidas entre muñecas
-let shared: ReturnType<typeof buildShared> | null = null
-function buildShared() {
-  const L = armSegs(1)
-  const R = armSegs(-1)
-  const LL = legSegs(1)
-  const RL = legSegs(-1)
-  return {
-    torso: torsoGeometry(),
-    neck: neckGeometry(),
-    upperL: limbGeometry(L.upper),
-    foreL: withSphere(limbGeometry(L.fore), J.elbowL, 0.0245),
-    upperR: limbGeometry(R.upper),
-    foreR: withSphere(limbGeometry(R.fore), mirrorX(J.elbowL), 0.0245),
-    thighL: limbGeometry(LL.thigh),
-    shinL: withSphere(limbGeometry(LL.shin), J.kneeL, 0.0375),
-    thighR: limbGeometry(RL.thigh),
-    shinR: withSphere(limbGeometry(RL.shin), mirrorX(J.kneeL), 0.0375),
-    ears: merge([earGeometry(1), earGeometry(-1)]),
-  }
-}
-
-const CURLS = [0, 0.2, 0.35, 0.9]
 
 type FaceTex = { map: THREE.CanvasTexture; rm: THREE.CanvasTexture; alpha: THREE.CanvasTexture }
 const FACE_CACHE_MAX = 10
@@ -150,54 +95,12 @@ export interface AnimStats {
   shownExpression: string
   frames: number
 }
-const handCache = new Map<string, { skin: THREE.BufferGeometry; nails: THREE.BufferGeometry }>()
-onDetailChange(() => {
-  handCache.clear()
-  footCache.clear()
-  shared = null
-})
-
-/** Refleja una geometría en x (mano derecha) invirtiendo el orden de los triángulos. */
-function mirrorGeo(g: THREE.BufferGeometry): THREE.BufferGeometry {
-  const c = g.clone()
-  c.scale(-1, 1, 1)
-  const idx = c.getIndex()
-  if (idx) {
-    const arr = idx.array as Uint16Array | Uint32Array
-    for (let k = 0; k < arr.length; k += 3) {
-      const t = arr[k + 1]
-      arr[k + 1] = arr[k + 2]
-      arr[k + 2] = t
-    }
-  }
-  return c
-}
-
 let torsoNormal: THREE.CanvasTexture | null = null
 function torsoNormalMap() {
   // sin DOM (tests de la lógica del rig) no hay canvas: el torso va sin relieve
   if (typeof document === 'undefined') return null
   if (!torsoNormal) torsoNormal = new THREE.CanvasTexture(torsoNormalCanvas())
   return torsoNormal
-}
-
-/** Construye la mano (coordenadas locales de la muñeca) con los dedos flexionados. */
-function handGeometry(side: 'L' | 'R', curlIn: number, shape: NailShape) {
-  const curl = CURLS.reduce((a, b) => (Math.abs(b - curlIn) < Math.abs(a - curlIn) ? b : a))
-  const key = `${side}|${curl}|${shape}`
-  const hit = handCache.get(key)
-  if (hit) return hit
-  const parts = handParts(curl)
-  const nails = merge(
-    parts.nails.map((n) => {
-      const g = nailGeometry(shape, n.r).clone()
-      g.applyMatrix4(nailMatrix(n))
-      return g
-    }),
-  )
-  const res = side === 'L' ? { skin: parts.skin, nails } : { skin: mirrorGeo(parts.skin), nails: mirrorGeo(nails) }
-  handCache.set(key, res)
-  return res
 }
 
 export class DollRig {
@@ -254,8 +157,7 @@ export class DollRig {
 
   constructor(doll: DollDef) {
     this.doll = doll
-    if (!shared) shared = buildShared()
-    const S = shared
+    const S = bodyParts()
     this.skin = skinMaterial(doll.skin)
     this.root.name = `doll-${doll.id}`
 
@@ -298,7 +200,7 @@ export class DollRig {
 
     // Cabeza con la cara pintada (los ojos se recortan y van en 3D detrás)
     this.headMat = headSkinMaterial()
-    this.headMesh = new THREE.Mesh(headGeometry({ lipFullness: doll.face.lipFullness }), this.headMat)
+    this.headMesh = new THREE.Mesh(headFor(doll.face.lipFullness), this.headMat)
     this.headMesh.castShadow = true
     this.attach.head.add(this.headMesh)
     this.eyes = buildEyes(doll, { lipFullness: doll.face.lipFullness }, this.headMat, this.skin)

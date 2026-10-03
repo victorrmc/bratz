@@ -198,8 +198,10 @@ export function parallelFrames(curve: THREE.Curve<THREE.Vector3>, segs: number, 
 }
 
 function capAt(f: Frame, r: number, radial: number, ex: number, ez: number, start: boolean): THREE.BufferGeometry {
-  // Casquete semiesférico suave para cerrar los extremos
-  const rings = 5
+  // Casquete semiesférico suave para cerrar los extremos. En calidad baja basta con
+  // dos anillos: dedos y cordones ocupan muy pocos píxeles y sus triángulos son de
+  // lo más caro de la muñeca en GPUs modestas.
+  const rings = DETAIL >= 1 ? 5 : Math.max(2, Math.round(5 * DETAIL))
   return surface(
     radial,
     rings,
@@ -268,13 +270,15 @@ export function table(points: [number, number][]): (x: number) => number {
 
 /** Extrusión redondeada de una forma 2D (gafas, corazones, estrellas…). */
 export function extrude(shape: THREE.Shape, depth: number, bevel = depth * 0.4, curveSegments = 24): THREE.BufferGeometry {
+  // menos segmentos con poco detalle (piezas pequeñas en pantalla)
+  const low = DETAIL < 0.5
   const g = new THREE.ExtrudeGeometry(shape, {
     depth,
     bevelEnabled: true,
     bevelThickness: bevel,
     bevelSize: bevel,
-    bevelSegments: 3,
-    curveSegments,
+    bevelSegments: low ? 1 : 3,
+    curveSegments: low ? Math.max(4, Math.round(curveSegments * 0.4)) : curveSegments,
   })
   g.translate(0, 0, -depth / 2)
   g.computeVertexNormals()
