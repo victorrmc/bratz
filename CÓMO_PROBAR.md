@@ -1,6 +1,6 @@
 # Cómo probarlo en el móvil (5 minutos)
 
-1. Abre la URL del juego en el móvil (Chrome o Safari) y **sube el volumen**.
+1. Abre **https://victorrmc.github.io/bratz/** en el móvil (Chrome o Safari) y **sube el volumen**.
 2. Pulsa **«Toca para empezar»**: suena la música y aparece Clara posando en la portada.
 3. **Estudio** (1 min):
    - El tutorial de 3 pasos sale solo la primera vez: toca una prenda, gira a Clara con el dedo y pulsa «¡A brillar!».
@@ -23,7 +23,7 @@
 ## Ver el final sin completar todo
 
 - **Atajo secreto:** en la portada 3D, toca **5 veces el corazoncito** que hay bajo el título. Se abre la pasarela especial en Ibiza y después la carta.
-- **Modo debug:** añade `?debug=1` a la URL (por ejemplo `https://…/bratz/?debug=1`). Aparece una pastilla «FPS» a la izquierda; tócala para ver las opciones:
+- **Modo debug:** añade `?debug=1` a la URL (por ejemplo `https://victorrmc.github.io/bratz/?debug=1`). Aparece una pastilla «FPS» a la izquierda; tócala para ver las opciones:
   - **Desbloquear todo**: monedas, prendas especiales y secretas, y todos los retos.
   - **Saltar al final**: va directamente a la pasarela final y a la carta.
   - **Resetear guardado**: vuelve a empezar desde cero (útil antes de dárselo).
